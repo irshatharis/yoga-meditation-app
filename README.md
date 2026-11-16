@@ -22,9 +22,17 @@ npm run preview
 
 The production build is in `dist/`.
 
+## Deploy
+
+The app is hosted on Cloudflare Workers (static assets) at https://yoga.irshath.com, configured in `cloudflare.config.ts`.
+
+- Every push to `main` deploys automatically via `.github/workflows/deploy.yml`. Pull requests are type-checked, built, and validated with a dry run.
+- The workflow uses the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets.
+- To deploy manually from your machine: `npm run deploy` (requires `cf auth login`).
+
 ## Install as an app
 
-Deploy the `dist/` folder to any static host with HTTPS (for example Cloudflare Pages, Netlify, or Vercel). Open the deployed URL:
+Open https://yoga.irshath.com:
 
 - **iPhone/iPad:** Safari → Share → Add to Home Screen.
 - **Mac/Chrome:** use the install icon in the address bar, or Chrome menu → Cast, save, and share → Install page as app.
