@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { said, secondsLeft, spySpeech, stubWakeLock, wakeLog } from './helpers'
+import { said, savedSession, secondsLeft, spySpeech, stubWakeLock, wakeLog } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await stubWakeLock(page)
@@ -121,6 +121,7 @@ test('a reload mid-practice picks up where it was', async ({ page }) => {
   await page.getByRole('button', { name: /^Begin/ }).click()
   await page.clock.runFor(30_000)
   await page.getByRole('button', { name: 'Next' }).click()
+  await expect.poll(() => savedSession(page), { timeout: 1_000 }).toBe('running Cat and cow')
   await page.reload()
   await expect(page.getByRole('button', { name: /^Resume/ })).toBeVisible()
   await expect(page.locator('.player-name')).toHaveText('Cat and cow')
@@ -129,6 +130,7 @@ test('a reload mid-practice picks up where it was', async ({ page }) => {
   await page.clock.runFor(5_000)
   await page.getByRole('button', { name: 'Pause' }).click()
   const left = await secondsLeft(page)
+  await expect.poll(() => savedSession(page)).toMatch(/^paused/)
   await page.reload()
   await expect(page.getByRole('button', { name: /^Resume/ })).toBeVisible()
   expect(await secondsLeft(page)).toBe(left)

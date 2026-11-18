@@ -34,6 +34,30 @@ export const secondsLeft = async (page: Page) => {
   return parts.reduce((acc, n) => acc * 60 + n, 0)
 }
 
+type Saved = { savedAt: number; player: { phase: { status: string; posMs?: number; originMs?: number }; timeline: { segments: { title: string; durationSec: number }[] } } }
+
+// The step and status of the session saved for resuming, read straight from
+// IndexedDB, so a test can wait for the write to land before it reloads.
+export const savedSession = (page: Page) =>
+  page.evaluate(
+    () =>
+      new Promise<string>(resolve => {
+        const req = indexedDB.open('still')
+        req.onsuccess = () => {
+          const get = req.result.transaction('kv').objectStore('kv').get('active')
+          get.onsuccess = () => {
+            req.result.close()
+            const s = get.result as Saved | undefined
+            if (!s) return resolve('none')
+            const { phase, timeline } = s.player
+            let pos = phase.status === 'running' ? s.savedAt - phase.originMs! : phase.posMs!
+            const step = timeline.segments.find(seg => (pos -= seg.durationSec * 1000) < 0)
+            resolve(`${phase.status} ${step?.title}`)
+          }
+        }
+      })
+  )
+
 // Records every spoken line so tests can check what the voice said.
 export async function spySpeech(page: Page) {
   await page.addInitScript(() => {
