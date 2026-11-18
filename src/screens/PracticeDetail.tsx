@@ -1,7 +1,7 @@
 import { createMemo, createSignal, For, Show, untrack } from 'solid-js'
 import { useNavigate, useParams, useSearchParams } from '@solidjs/router'
 import { useApp } from '../state/app'
-import { compile, type Segment } from '../domain/timeline'
+import { authoredSec, compile, type Segment } from '../domain/timeline'
 import { Figure } from '../figure/Figure'
 import { primeForPractice } from '../engine/session'
 import { encodeShare } from '../store/transfer'
@@ -44,10 +44,12 @@ function Detail(props: { practice: Practice }) {
   const app = useApp()
   const navigate = useNavigate()
   const [search] = useSearchParams()
+  const lengthChoices = () => LENGTH_CHOICES.filter(m => !props.practice.adjustable || (m * 60 >= props.practice.adjustable.minSec && m * 60 <= props.practice.adjustable.maxSec))
+  // Start at the choice closest to the length the practice was written for.
   const defaultLen = untrack(() => {
-    const items = props.practice.items
-    const sit = items.find(i => i.type === 'sit')
-    return sit && sit.type === 'sit' ? Math.round(sit.durationSec / 60) : 10
+    const written = props.practice.items.reduce((sum, item) => sum + authoredSec(item), 0) / 60
+    const choices = lengthChoices()
+    return choices.reduce((best, m) => (Math.abs(m - written) < Math.abs(best - written) ? m : best), choices[0] ?? 10)
   })
   const [lengthMin, setLengthMin] = createSignal(defaultLen)
   const [scale, setScale] = createSignal<number>(1)
@@ -84,7 +86,6 @@ function Detail(props: { practice: Practice }) {
   const pacing = () => ({ ...app.settings.pacing, ...props.practice.pacing })
   const saved = () => app.favorites().includes(props.practice.id)
   const mine = () => props.practice.origin !== 'builtin'
-  const lengthChoices = () => LENGTH_CHOICES.filter(m => !props.practice.adjustable || (m * 60 >= props.practice.adjustable.minSec && m * 60 <= props.practice.adjustable.maxSec))
 
   const begin = () => {
     primeForPractice(app.settings)
