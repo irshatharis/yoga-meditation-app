@@ -1,0 +1,53 @@
+import { readFile } from 'node:fs/promises'
+import { expect, test } from '@playwright/test'
+
+test('export, erase and import bring everything back', async ({ page }) => {
+  await page.goto('/practices/new')
+  await page.getByLabel('Title').fill('Round trip flow')
+  await page.getByRole('button', { name: 'Rest' }).click()
+  await page.getByRole('button', { name: 'Save practice' }).click()
+  await expect(page).toHaveURL(/\/practices\/practice-/)
+
+  await page.goto('/settings')
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export backup' }).click()])
+  const file = await download.path()
+  const backup = JSON.parse(await readFile(file, 'utf8'))
+  expect(backup.app).toBe('still')
+  expect(backup.practices.map((p: { title: string }) => p.title)).toContain('Round trip flow')
+
+  await page.getByRole('button', { name: 'Erase', exact: true }).click()
+  await page.getByLabel('Type ERASE to confirm').fill('erase')
+  await page.getByRole('button', { name: 'Erase all data' }).click()
+  await page.waitForURL('/')
+  await page.goto('/practices?kind=mine')
+  await expect(page.getByText('Round trip flow')).toHaveCount(0)
+
+  await page.goto('/settings')
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Import backup' }).click()])
+  await chooser.setFiles(file)
+  await expect(page.getByText('1 new practices')).toBeVisible()
+  await page.getByRole('button', { name: 'Import', exact: true }).click()
+  await expect(page.getByRole('status')).toContainText('Imported 1 practices')
+
+  await page.goto('/practices?kind=mine')
+  await expect(page.getByText('Round trip flow')).toBeVisible()
+})
+
+test('a share link adds the practice on another device', async ({ page, browser }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'share', { configurable: true, value: async (d: { url: string }) => void ((window as unknown as { __shared: string }).__shared = d.url) })
+  })
+  await page.goto('/practices/desk-break')
+  await page.getByRole('button', { name: 'Share' }).click()
+  const url = await expect.poll(() => page.evaluate(() => (window as unknown as { __shared?: string }).__shared)).toBeTruthy().then(() => page.evaluate(() => (window as unknown as { __shared: string }).__shared))
+  expect(url).toContain('/share#')
+
+  const other = await browser.newContext()
+  const friend = await other.newPage()
+  await friend.goto(url.replace(/^https?:\/\/[^/]+/, 'http://localhost:4173'))
+  await expect(friend.getByText('Someone shared a practice with you')).toBeVisible()
+  await friend.getByRole('button', { name: 'Add to my practices' }).click()
+  await expect(friend).toHaveURL(/\/practices\//)
+  await expect(friend.locator('h1')).toContainText('Desk break')
+  await other.close()
+})

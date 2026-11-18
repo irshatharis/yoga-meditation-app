@@ -1,35 +1,120 @@
 import { render } from '@solidjs/web'
-import { For, createSignal, onSettled } from 'solid-js'
-import { Figure } from './figure/Figure'
-import { proto } from './figure/proto-poses'
-import { blend, type FigurePose } from './figure/skeleton'
+import { createRouter, useLocation } from '@solidjs/router'
+import { Show, createEffect } from 'solid-js'
+import type { JSX } from '@solidjs/web'
+import './ui/styles.css'
+import { AppProvider, loadAll, useApp } from './state/app'
+import { requestPersistence } from './store/db'
+import { Icon } from './ui/icons'
+import { Toaster } from './ui/kit'
+import { registerUpdates } from './pwa'
+import Today from './screens/Today'
+import Practices from './screens/Practices'
+import PracticeDetail from './screens/PracticeDetail'
+import Builder from './screens/Builder'
+import Poses from './screens/Poses'
+import PoseDetail from './screens/PoseDetail'
+import PoseEditor from './screens/PoseEditor'
+import Player from './screens/Player'
+import Journal from './screens/Journal'
+import SettingsScreen from './screens/Settings'
+import About from './screens/About'
+import ShareImport from './screens/ShareImport'
+import PathDetail from './screens/PathDetail'
+import NotFound from './screens/NotFound'
 
-function Morph() {
-  const keys = Object.keys(proto)
-  const [t, setT] = createSignal(0)
-  onSettled(() => {
-    let raf = 0
-    const tick = (now: number) => { setT(now / 1600); raf = requestAnimationFrame(tick) }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  })
-  const pose = (): FigurePose => {
-    const i = Math.floor(t()) % keys.length
-    const a = proto[keys[i]!]!, b = proto[keys[(i + 1) % keys.length]!]!
-    const f = Math.min(1, (t() % 1) * 1.6)
-    return blend(a, b, f * f * (3 - 2 * f))
-  }
-  return <Figure pose={pose()} />
+const Router = createRouter({
+  routes: [
+    { path: '/', component: Today },
+    { path: '/practices', component: Practices },
+    { path: '/practices/new', component: Builder },
+    { path: '/practices/:id', component: PracticeDetail },
+    { path: '/practices/:id/edit', component: Builder },
+    { path: '/paths/:id', component: PathDetail },
+    { path: '/poses', component: Poses },
+    { path: '/poses/new', component: PoseEditor },
+    { path: '/poses/:id', component: PoseDetail },
+    { path: '/poses/:id/edit', component: PoseEditor },
+    { path: '/play/:id', component: Player },
+    { path: '/journal', component: Journal },
+    { path: '/settings', component: SettingsScreen },
+    { path: '/about', component: About },
+    { path: '/share', component: ShareImport },
+    { path: '*404', component: NotFound }
+  ]
+})
+
+function Appearance() {
+  const app = useApp()
+  createEffect(
+    () => [app.settings.theme, app.settings.motion] as const,
+    ([theme, motion]) => {
+      const root = document.documentElement
+      if (theme === 'system') delete root.dataset.theme
+      else root.dataset.theme = theme
+      if (motion === 'reduce') root.dataset.motion = 'reduce'
+      else delete root.dataset.motion
+      const dark = theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#15130f' : '#f5efe5')
+    }
+  )
+  return null
 }
 
-render(() => (
-  <main style={{ display: 'grid', 'grid-template-columns': 'repeat(4, 220px)', gap: '12px', padding: '16px', background: '#f5f0e6', '--fig': '#c46b4f', '--fig-far': '#9c4f39', '--fig-shadow': 'rgba(60,40,20,.12)', '--fig-mat': '#e2d6c2' } as any}>
-    <For each={Object.entries(proto)}>{([name, pose]) => (
-      <figure style={{ margin: 0, background: '#fbf8f2', 'border-radius': '16px', padding: '8px' }}>
-        <Figure pose={pose} />
-        <figcaption style={{ 'text-align': 'center', font: '13px system-ui' }}>{name}</figcaption>
-      </figure>
-    )}</For>
-    <figure id="morph" style={{ margin: 0, background: '#fbf8f2', 'border-radius': '16px', padding: '8px' }}><Morph /><figcaption>morph</figcaption></figure>
-  </main>
-), document.getElementById('root')!)
+function TabBar() {
+  return (
+    <nav class="tabbar" aria-label="Main">
+      <a href="/" aria-label="Today">
+        <Icon name="home" />
+        Today
+      </a>
+      <a href="/practices">
+        <Icon name="grid" />
+        Practices
+      </a>
+      <a href="/poses">
+        <Icon name="figure" />
+        Poses
+      </a>
+      <a href="/journal">
+        <Icon name="calendar" />
+        Journal
+      </a>
+    </nav>
+  )
+}
+
+function Shell(props: { children: JSX.Element }) {
+  const location = useLocation()
+  return (
+    <>
+      <Appearance />
+      <div class="shell">{props.children}</div>
+      <Show when={!location.pathname.startsWith('/play')}>
+        <TabBar />
+      </Show>
+      <Toaster />
+    </>
+  )
+}
+
+async function boot() {
+  const initial = await loadAll()
+  const root = document.getElementById('root')!
+  root.textContent = ''
+  render(
+    () => (
+      <AppProvider initial={initial}>
+        <Router>{props => <Shell>{props.children}</Shell>}</Router>
+      </AppProvider>
+    ),
+    root
+  )
+  void requestPersistence()
+  registerUpdates()
+}
+
+void boot().catch(err => {
+  const root = document.getElementById('root')!
+  root.innerHTML = `<div style="padding:32px;font-family:system-ui;max-width:32em;margin:auto"><h1 style="font-weight:500">still. could not open its storage.</h1><p>This can happen in a private window or when site data is blocked. ${String(err?.message ?? err)}</p></div>`
+})

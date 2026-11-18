@@ -33,6 +33,8 @@ export type CompileOptions = {
   scale?: number
   // Overrides total length for adjustable practices (meditation timers).
   lengthSec?: number
+  // Overrides interval bells in sits. 0 turns them off.
+  intervalBellSec?: number
 }
 
 const SIDE_LABEL: Record<Side, string> = { right: 'Right side', left: 'Left side' }
@@ -56,11 +58,9 @@ export function compile(practice: Practice, library: ReadonlyMap<PoseId, Pose>, 
   const authored = practice.items.reduce((sum, item) => sum + authoredSec(item), 0)
   const scale = options.lengthSec && authored > 0 ? options.lengthSec / authored : (options.scale ?? 1)
   const segments: Segment[] = []
-  const lookup = (id: PoseId) => {
-    const pose = library.get(id)
-    if (!pose) throw new Error(`Unknown pose "${id}" in practice "${practice.title}"`)
-    return pose
-  }
+  // A practice may reference a pose the person has since deleted. Those steps
+  // are skipped rather than breaking the whole practice.
+  const lookup = (id: PoseId | undefined) => (id ? library.get(id) : undefined)
 
   const prepare = (item: number, title: string, label: string | undefined, figure: FigurePose | null, pose: Pose | undefined, side: Side | undefined, first: boolean) => {
     if (pacing.prepareSec <= 0 && !pacing.waitForMe) return
@@ -91,6 +91,7 @@ export function compile(practice: Practice, library: ReadonlyMap<PoseId, Pose>, 
     switch (item.type) {
       case 'pose': {
         const pose = lookup(item.pose)
+        if (!pose) return
         const hold = roundTo(item.holdSec * scale, 5)
         sidesFor(pose, item.sides).forEach((side, i) => {
           const figure = figureFor(pose, side)
@@ -126,12 +127,15 @@ export function compile(practice: Practice, library: ReadonlyMap<PoseId, Pose>, 
         return
       }
       case 'flow': {
-        const firstPose = lookup(item.steps[0]!.pose)
-        prepare(index, item.title, item.rounds > 1 ? `${item.rounds} rounds` : undefined, figureFor(firstPose, 'right'), undefined, undefined, first)
+        const steps = item.steps.flatMap(step => {
+          const pose = lookup(step.pose)
+          return pose ? [{ step, pose }] : []
+        })
+        if (steps.length === 0) return
+        prepare(index, item.title, item.rounds > 1 ? `${item.rounds} rounds` : undefined, figureFor(steps[0]!.pose, 'right'), undefined, undefined, first)
         for (let round = 1; round <= item.rounds; round++) {
           const lead: Side = item.alternate && round % 2 === 0 ? 'left' : 'right'
-          item.steps.forEach((step, s) => {
-            const pose = lookup(step.pose)
+          steps.forEach(({ step, pose }, s) => {
             const side = pose.sided ? lead : undefined
             segments.push({
               kind: 'flow',
@@ -153,13 +157,14 @@ export function compile(practice: Practice, library: ReadonlyMap<PoseId, Pose>, 
         return
       }
       case 'sit': {
-        const posture = item.posture ? lookup(item.posture) : undefined
+        const posture = lookup(item.posture)
         const duration = roundTo(item.durationSec * scale, 30)
         if (first) prepare(index, item.title, 'Settle in', figureFor(posture, undefined), undefined, undefined, true)
         const stretch = duration / item.durationSec
         const guidance: Cue[] = detail === 'quiet' ? [] : item.guidance.map(g => ({ at: Math.round(g.at * stretch), say: g.text }))
         const bells: Cue[] = []
-        if (item.intervalBellSec) for (let t = item.intervalBellSec; t < duration - 5; t += item.intervalBellSec) bells.push({ at: t, sound: 'bell' })
+        const every = options.intervalBellSec ?? item.intervalBellSec
+        if (every) for (let t = every; t < duration - 5; t += every) bells.push({ at: t, sound: 'bell' })
         segments.push({
           kind: 'sit',
           title: item.title,
@@ -173,7 +178,7 @@ export function compile(practice: Practice, library: ReadonlyMap<PoseId, Pose>, 
         return
       }
       case 'breath': {
-        const posture = item.posture ? lookup(item.posture) : undefined
+        const posture = lookup(item.posture)
         const cycles = Math.max(1, Math.round(item.cycles * scale))
         const length = cycleSec(item.pattern)
         if (first) prepare(index, item.title, 'Settle in', figureFor(posture, undefined), undefined, undefined, true)
@@ -211,7 +216,7 @@ export function compile(practice: Practice, library: ReadonlyMap<PoseId, Pose>, 
         return
       }
       case 'rest': {
-        const pose = item.pose ? lookup(item.pose) : undefined
+        const pose = lookup(item.pose)
         const duration = roundTo(item.durationSec * scale, 5)
         if (pose) prepare(index, item.title, undefined, figureFor(pose, undefined), pose, undefined, first)
         segments.push({
@@ -260,10 +265,5 @@ export function authoredSec(item: PracticeItem): number {
 }
 
 // Estimate for cards and lists, including the gaps the timeline will insert.
-export function estimateSec(practice: Practice, library: ReadonlyMap<PoseId, Pose>, settings: Settings, options?: CompileOptions) {
-  try {
-    return compile(practice, library, settings, options).totalSec
-  } catch {
-    return practice.items.reduce((s, i) => s + authoredSec(i), 0)
-  }
-}
+export const estimateSec = (practice: Practice, library: ReadonlyMap<PoseId, Pose>, settings: Settings, options?: CompileOptions) =>
+  compile(practice, library, settings, options).totalSec

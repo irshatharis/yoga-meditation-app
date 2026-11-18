@@ -134,8 +134,8 @@ export type SessionLog = {
   note?: string
 }
 
-export type BellSound = 'bowl' | 'chime' | 'gong' | 'wood'
-export type Ambient = 'none' | 'brown' | 'rain' | 'ocean'
+export type BellSound = 'bowl' | 'strike' | 'gong' | 'chime' | 'soft'
+export type Ambient = 'none' | 'rain' | 'ocean' | 'forest' | 'stream' | 'deep'
 export type VoiceDetail = 'full' | 'names' | 'quiet'
 
 export type Settings = {

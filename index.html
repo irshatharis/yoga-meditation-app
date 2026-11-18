@@ -3,10 +3,30 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>still.</title>
+    <meta name="theme-color" content="#f5efe5" />
+    <meta name="description" content="A free, private, offline place for yoga, breathwork and meditation. Guided practices, gentle pacing, your own journal. No account needed." />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="still." />
+    <meta property="og:title" content="still. Yoga, breath and meditation" />
+    <meta property="og:description" content="A free, private, offline place for yoga, breathwork and meditation." />
+    <meta property="og:image" content="https://still.irshath.com/icons/icon-512.png" />
+    <link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <title>still. Yoga, breath and meditation</title>
+    <style>
+      html { background: #f5efe5; }
+      @media (prefers-color-scheme: dark) { html { background: #15130f; } }
+      .boot { min-height: 100dvh; display: grid; place-items: center; }
+      .boot span { width: 56px; height: 56px; border-radius: 50%; background: #c0603f; opacity: .85; animation: boot 2.4s ease-in-out infinite; }
+      @keyframes boot { 50% { transform: scale(1.15); opacity: .55; } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div class="boot" aria-label="Loading"><span></span></div></div>
+    <noscript>still. needs JavaScript to run.</noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

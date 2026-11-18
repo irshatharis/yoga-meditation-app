@@ -24,7 +24,7 @@
     "valibot": "^1.5.0"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "^2.0.0-rc.1",
+    "@cloudflare/vite-plugin": "^2.0.0-beta.v.17",
     "@playwright/test": "^1.65.1",
     "@solidjs/vite-plugin": "^3.0.1",
     "@types/node": "^22.20.5",
