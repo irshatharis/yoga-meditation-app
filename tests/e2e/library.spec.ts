@@ -43,6 +43,23 @@ test('every link added to a pose survives a reload', async ({ page }) => {
   await expect(page.locator('.media-link')).toHaveCount(2)
 })
 
+test('a very long practice name never makes the page scroll sideways', async ({ page }) => {
+  const name = 'Morningstretchandbreathe'.repeat(6)
+  const sideways = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+  await page.goto('/practices/new')
+  await page.getByLabel('Title').fill(name)
+  await page.getByRole('button', { name: 'Rest' }).click()
+  await page.getByRole('button', { name: 'Save practice' }).click()
+  await expect(page.locator('h1')).toHaveText(name)
+  expect(await sideways()).toBe(0)
+  await page.goto('/practices?kind=mine')
+  await expect(page.getByText(name)).toBeVisible()
+  expect(await sideways()).toBe(0)
+  await page.goto('/')
+  await expect(page.getByText(name)).toBeVisible()
+  expect(await sideways()).toBe(0)
+})
+
 test('cancelling a copy of a built-in practice leaves nothing behind', async ({ page }) => {
   await page.goto('/practices')
   await page.goto('/practices/desk-break')
