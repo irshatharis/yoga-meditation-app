@@ -33,3 +33,18 @@ export const secondsLeft = async (page: Page) => {
   const parts = text.replace(' left', '').split(':').map(Number)
   return parts.reduce((acc, n) => acc * 60 + n, 0)
 }
+
+// Records every spoken line so tests can check what the voice said.
+export async function spySpeech(page: Page) {
+  await page.addInitScript(() => {
+    const w = window as unknown as { __said: string[] }
+    w.__said = []
+    const speak = speechSynthesis.speak.bind(speechSynthesis)
+    speechSynthesis.speak = (u: SpeechSynthesisUtterance) => {
+      if (u.text.trim()) w.__said.push(u.text)
+      speak(u)
+    }
+  })
+}
+
+export const said = (page: Page) => page.evaluate(() => (window as unknown as { __said: string[] }).__said)
