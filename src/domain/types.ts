@@ -154,7 +154,7 @@ export type Settings = {
 
 export const DEFAULT_SETTINGS: Settings = {
   pacing: { prepareSec: 10, switchSec: 6, waitForMe: false },
-  voice: { enabled: true, voiceURI: null, rate: 0.92, detail: 'full' },
+  voice: { enabled: true, voiceURI: null, rate: 0.92, detail: 'names' },
   sound: { bell: 'bowl', volume: 0.7, countdown: true, ambient: 'none', ambientVolume: 0.35 },
   keepAwake: true,
   haptics: true,

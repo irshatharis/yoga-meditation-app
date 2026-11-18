@@ -1,12 +1,12 @@
-import { createSignal, For, onSettled, Show, snapshot } from 'solid-js'
+import { createSignal, For, onCleanup, Show } from 'solid-js'
 import type { JSX } from '@solidjs/web'
 import { useNavigate } from '@solidjs/router'
 import { useApp } from '../state/app'
-import { listVoices, onVoicesChanged, pickVoice, speak } from '../engine/speech'
+import { chooseVoice, createSpeaker, subscribeVoices } from '../engine/speech'
 import { bell, setAmbient, unlockAudio } from '../engine/audio'
 import * as db from '../store/db'
 import { backupBlob, backupFileName, parseBackup, planMerge, resolveMerge, type Conflict, type MergePlan, type ParsedBackup } from '../store/transfer'
-import { parseSettings } from '../store/schema'
+import { parseSettings, settingsRecord } from '../store/schema'
 import { canPromptInstall, isIOS, isStandalone, onInstallAvailable, promptInstall } from '../pwa'
 import { Icon } from '../ui/icons'
 import { feedbackHref, SOURCE_URL } from '../seo'
@@ -28,8 +28,12 @@ function Row(props: { title: string; hint?: string; children: JSX.Element }) {
 }
 
 function Group(props: { title: string; id?: string; children: JSX.Element }) {
+  // Links such as /settings#data land on their section, which a client-side navigation does not do by itself.
+  const land = (el: HTMLElement) => {
+    if (props.id && location.hash === `#${props.id}`) requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth' }))
+  }
   return (
-    <section class="stack" id={props.id}>
+    <section class="stack" id={props.id} ref={land}>
       <p class="eyebrow">{props.title}</p>
       <div class="card list" style={{ padding: '0 16px' }}>
         {props.children}
@@ -55,25 +59,23 @@ export default function SettingsScreen() {
   const [eraseText, setEraseText] = createSignal('')
   let previewTimer = 0
 
-  onSettled(() => {
-    const refresh = () => setVoices(listVoices().slice().sort((a, b) => a.lang.localeCompare(b.lang) || a.name.localeCompare(b.name)))
-    refresh()
-    const off = onVoicesChanged(refresh)
-    const offInstall = onInstallAvailable(() => setInstallable(true))
-    void navigator.storage?.persisted?.().then(setPersisted)
-    void navigator.storage?.estimate?.().then(e => setUsage(e.usage ? `${(e.usage / 1024 / 1024).toFixed(1)} MB used on this device` : ''))
-    if (location.hash === '#data') queueMicrotask(() => document.getElementById('data')?.scrollIntoView({ behavior: 'smooth' }))
-    return () => {
-      off()
-      offInstall()
-      clearTimeout(previewTimer)
-      setAmbient('none', 0)
-    }
+  const offVoices = subscribeVoices(list => setVoices(list.slice().sort((a, b) => a.lang.localeCompare(b.lang) || a.name.localeCompare(b.name))))
+  const offInstall = onInstallAvailable(() => setInstallable(true))
+  void navigator.storage?.persisted?.().then(setPersisted)
+  void navigator.storage?.estimate?.().then(e => setUsage(e.usage ? `${(e.usage / 1024 / 1024).toFixed(1)} MB used on this device` : ''))
+  const speaker = createSpeaker(() => ({ voiceURI: s.voice.voiceURI, rate: s.voice.rate, volume: s.sound.volume }))
+  let tries = 0
+  onCleanup(() => {
+    offVoices()
+    offInstall()
+    clearTimeout(previewTimer)
+    speaker.stop()
+    setAmbient('none', 0)
   })
 
   const testVoice = () => {
     unlockAudio()
-    speak('Find a comfortable seat, and let your breath slow down.', { voiceURI: s.voice.voiceURI, rate: s.voice.rate, volume: s.sound.volume }, true)
+    speaker.say('Find a comfortable seat, and let your breath slow down.', ++tries)
   }
   const testBell = (kind: BellSound) => {
     unlockAudio()
@@ -89,7 +91,7 @@ export default function SettingsScreen() {
   const exportAll = async () => {
     const blobs: db.StoredBlob[] = includeMedia() ? await db.getAll<db.StoredBlob>('blobs') : []
     try {
-      download(backupFileName(), await backupBlob({ settings: snapshot(s), poses: app.userPoses(), practices: app.userPractices(), logs: app.logs(), blobs }, includeMedia()))
+      download(backupFileName(), await backupBlob({ settings: settingsRecord(s), poses: app.userPoses(), practices: app.userPractices(), logs: app.logs(), blobs }, includeMedia()))
       toast('Backup saved to your downloads.')
     } catch {
       toast('The backup could not be made. Try again without photos and videos.')
@@ -185,7 +187,7 @@ export default function SettingsScreen() {
           <div class="setting" style={{ 'flex-wrap': 'wrap' }}>
             <div>
               <strong>Voice</strong>
-              <small>{(voices().length ? pickVoice(s.voice.voiceURI)?.name : undefined) ?? 'Device default'}</small>
+              <small>{(voices().length ? chooseVoice(s.voice.voiceURI, voices())?.name : undefined) ?? 'Device default'}</small>
             </div>
             <select class="input" style={{ width: 'auto', 'max-width': '100%' }} value={s.voice.voiceURI ?? ''} onChange={e => set(d => void (d.voice.voiceURI = e.currentTarget.value || null))} aria-label="Voice">
               <option value="">Best available</option>

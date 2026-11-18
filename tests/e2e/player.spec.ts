@@ -98,7 +98,6 @@ test('announces a step skipped to while paused once it plays', async ({ page }) 
   await page.clock.runFor(2_000)
   await page.getByRole('button', { name: 'Pause' }).click()
   await page.getByRole('button', { name: 'Next' }).click()
-  await page.getByRole('button', { name: 'Next' }).click()
   await expect(page.locator('.player-info .eyebrow')).toHaveText('Next up')
   const before = (await said(page)).length
   await page.getByRole('button', { name: 'Play' }).click()

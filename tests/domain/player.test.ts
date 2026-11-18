@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { compile } from '../../src/domain/timeline'
-import { advance, back, dueCues, extend, locate, next, pause, play, position, practiced, start } from '../../src/domain/player'
+import { advance, back, dueCues, extend, locate, next, pause, play, position, practiced, start, steps } from '../../src/domain/player'
 import { DEFAULT_SETTINGS, poseId, practiceId, type Pose, type PoseId, type Practice, type Settings } from '../../src/domain/types'
 
 const pose = (id: string, sided: boolean): Pose => ({
@@ -144,12 +144,32 @@ describe('player', () => {
     expect(advance(s, 205_000).phase.status).toBe('running')
   })
 
-  it('skips forward and back by segment', () => {
+  it('skips a whole step at a time, get-ready gap included', () => {
     let s = play(start(timeline), 0)
     s = next(s, 2_000)
-    expect(locate(s.timeline, position(s, 2_000)).segment.kind).toBe('hold')
+    expect(locate(s.timeline, position(s, 2_000))).toMatchObject({ index: 2, intoMs: 0, segment: { kind: 'prepare', title: 'cobra' } })
     s = back(s, 3_000)
     expect(locate(s.timeline, position(s, 3_000))).toMatchObject({ index: 0, intoMs: 0 })
+  })
+
+  it('goes back to the start of the step once it is under way', () => {
+    let s = play(start(timeline), 0)
+    s = back(s, 20_000)
+    expect(locate(s.timeline, position(s, 20_000))).toMatchObject({ index: 0, intoMs: 0 })
+  })
+
+  it('treats a flow as one step and each side of a pose as its own', () => {
+    const t = compile(
+      practice([
+        { type: 'flow', title: 'Cat and cow', rounds: 3, breathSec: 4, alternate: false, steps: [{ pose: poseId('child'), breaths: 1, cue: 'In.' }, { pose: poseId('cobra'), breaths: 1, cue: 'Out.' }] },
+        { type: 'pose', pose: poseId('tree'), holdSec: 30 }
+      ]),
+      library,
+      settings({ prepareSec: 10 })
+    )
+    expect(steps(t).map(st => t.segments.slice(st.first, st.last + 1).map(seg => seg.kind).join(' '))).toEqual(['prepare flow flow flow flow flow flow', 'prepare hold', 'switch hold'])
+    const s = next(play(start(t), 0), 12_000)
+    expect(locate(s.timeline, position(s, 12_000)).segment).toMatchObject({ kind: 'prepare', title: 'tree' })
   })
 
   it('extends the current segment', () => {
@@ -169,9 +189,9 @@ describe('player', () => {
 
   it('counts time spent practising, not time skipped', () => {
     let s = play(start(timeline), 0)
-    s = next(next(next(next(s, 4_000), 5_000), 6_000), 7_000)
+    s = next(next(s, 4_000), 5_000)
     expect(s.phase.status).toBe('done')
-    expect(practiced(s, 50_000)).toBe(7_000)
+    expect(practiced(s, 50_000)).toBe(5_000)
   })
 
   it('leaves paused time out of the practised time', () => {
@@ -196,7 +216,7 @@ describe('player', () => {
     expect(s.phase.status).toBe('waiting')
     s = next(s, 15_000)
     expect(s.phase.status).toBe('running')
-    expect(locate(s.timeline, position(s, 15_000)).segment.kind).toBe('hold')
+    expect(locate(s.timeline, position(s, 15_000)).segment).toMatchObject({ kind: 'prepare', title: 'cobra' })
     expect(practiced(s, 16_000)).toBe(11_000)
   })
 })

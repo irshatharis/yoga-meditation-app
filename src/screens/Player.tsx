@@ -1,13 +1,14 @@
-import { createEffect, createMemo, createSignal, For, Match, onSettled, Show, Switch, untrack } from 'solid-js'
+import { createMemo, createSignal, For, Match, onCleanup, Show, Switch, untrack } from 'solid-js'
 import { useNavigate, useParams, useSearchParams } from '@solidjs/router'
 import { Figure } from '../figure/Figure'
 import { blend, type FigurePose } from '../figure/skeleton'
-import { advance, back, dueCues, extend, locate, next, pause, play, position, practiced, start, type PlayerState } from '../domain/player'
-import { compile, type Segment, type Timeline } from '../domain/timeline'
+import { advance, back, dueCues, extend, locate, next, pause, play, position, practiced, start, stepOf, steps, type PlayerState } from '../domain/player'
+import { compile, type Segment } from '../domain/timeline'
 import type { PathId, Practice, SessionLog } from '../domain/types'
 import { createKeepAwake, type AwakeState } from '../engine/awake'
 import { resumeAudio, setAmbient, setKeepAlive, silence } from '../engine/audio'
-import { mediaSession, playCue, primeForPractice, recentlyPrimed, stopVoice, vibrate } from '../engine/session'
+import { playCue, primeForPractice, recentlyPrimed, showNowPlaying, vibrate } from '../engine/session'
+import { createSpeaker } from '../engine/speech'
 import { useApp, type ActiveSession } from '../state/app'
 import { Icon } from '../ui/icons'
 import { clock, minutes, Segmented, Sheet, pressed } from '../ui/kit'
@@ -17,14 +18,27 @@ import '../ui/player.css'
 const reduceMotion = () =>
   document.documentElement.dataset.motion === 'reduce' || matchMedia('(prefers-reduced-motion: reduce)').matches
 
+// Sessions saved before they carried an id.
+const UNNAMED = 'resume'
+
 export default function Player() {
   const app = useApp()
   const params = useParams()
   const [search] = useSearchParams()
   const practice = untrack(() => app.practice(params.id ?? ''))
+  const q = untrack(() => ({ ...search }))
   return (
     <Show when={practice} fallback={<Missing />}>
-      {p => <Session practice={p()} resume={untrack(() => search.resume === '1')} lengthSec={untrack(() => Number(search.len) || undefined)} scale={untrack(() => Number(search.scale) || undefined)} bells={untrack(() => (search.bells === undefined ? undefined : Number(search.bells)))} path={untrack(() => (search.path ? { id: search.path as PathId, day: Number(search.day) || 1 } : undefined))} />}
+      {p => (
+        <Session
+          practice={p()}
+          id={typeof q.session === 'string' ? q.session : q.resume === '1' ? UNNAMED : undefined}
+          lengthSec={Number(q.len) || undefined}
+          scale={Number(q.scale) || undefined}
+          bells={q.bells === undefined ? undefined : Number(q.bells)}
+          path={q.path ? { id: q.path as PathId, day: Number(q.day) || 1 } : undefined}
+        />
+      )}
     </Show>
   )
 }
@@ -40,31 +54,39 @@ function Missing() {
   )
 }
 
-type SessionProps = { practice: Practice; resume: boolean; lengthSec?: number; scale?: number; bells?: number; path?: { id: PathId; day: number } }
+// `id` names one run of a practice. The address carries it, so a reload finds the saved run again.
+type SessionProps = { practice: Practice; id?: string; lengthSec?: number; scale?: number; bells?: number; path?: { id: PathId; day: number } }
 
-function initialState(props: SessionProps, active: ActiveSession | null, build: () => Timeline): { state: PlayerState; startedAt: number; resumed: boolean } {
-  if (props.resume && active && active.practice === props.practice.id) {
+type Run = { id: string; state: PlayerState; startedAt: number; resumed: boolean }
+
+function openRun(props: SessionProps, active: ActiveSession | null, build: () => PlayerState): Run {
+  if (props.id && active && active.practice === props.practice.id && (active.id ?? UNNAMED) === props.id) {
     const s = active.player
     // Time kept passing while the app was closed. Resume where it was saved.
     const posMs = s.phase.status === 'running' ? active.savedAt - s.phase.originMs : 'posMs' in s.phase ? s.phase.posMs : 0
     // Sessions saved before practised time was tracked count their position instead.
     const kept = practiced(s, active.savedAt)
     const practicedMs = Number.isFinite(kept) ? kept : posMs
-    return { state: { ...s, practicedMs, phase: { status: 'paused', posMs } }, startedAt: active.startedAt, resumed: true }
+    return { id: props.id, state: { ...s, practicedMs, phase: { status: 'paused', posMs } }, startedAt: active.startedAt, resumed: true }
   }
-  return { state: start(build()), startedAt: Date.now(), resumed: false }
+  return { id: props.id ?? newId('run'), state: build(), startedAt: Date.now(), resumed: false }
 }
 
+// The player is driven by plain functions. Taps call play, pause, skip and
+// end; one frame loop moves the clock, plays due cues and notices when the
+// step changes. Signals only carry the result to the screen.
 function Session(props: SessionProps) {
   const app = useApp()
   const navigate = useNavigate()
-  const [, setSearch] = useSearchParams()
+  const [search, setSearch] = useSearchParams()
   const settings = app.settings
-  const init = untrack(() =>
-    initialState(props, app.active(), () => compile(props.practice, app.poses(), settings, { lengthSec: props.lengthSec, scale: props.scale, intervalBellSec: props.bells }))
+  const run = untrack(() =>
+    openRun(props, app.active(), () => start(compile(props.practice, app.poses(), settings, { lengthSec: props.lengthSec, scale: props.scale, intervalBellSec: props.bells })))
   )
-  let current = init.state
+  const stepList = steps(run.state.timeline)
+  let current = run.state
   let lastPos = -1
+  let lastIndex = -1
   let log: SessionLog | null = null
 
   const [state, setState] = createSignal<PlayerState>(current)
@@ -76,48 +98,58 @@ function Session(props: SessionProps) {
   const [begun, setBegun] = createSignal(false)
   // The last spoken line, tagged with its segment so it clears itself when the segment changes.
   const [said, setSaid] = createSignal<{ index: number; text: string } | null>(null)
+  // When the segment changes, the figure morphs from the previous pose.
+  const [morph, setMorph] = createSignal<{ from: FigurePose | null; at: number }>({ from: null, at: 0 })
 
   const loc = createMemo(() => locate(state().timeline, position(state(), now())))
   const segment = () => loc().segment
   const status = () => state().phase.status
 
   const keepAwake = createKeepAwake(setAwake)
-  const media = mediaSession({
-    play: () => toggle(true),
-    pause: () => toggle(false),
-    next: () => skip(1),
-    prev: () => skip(-1),
-    stop: () => setEndOpen(true)
-  })
+  const speaker = createSpeaker(() => ({ voiceURI: settings.voice.voiceURI, rate: settings.voice.rate, volume: settings.sound.volume }))
+  // A get-ready gap speaks for the step it introduces, so its lines run on into that step.
+  const topic = (index: number) => {
+    const kind = current.timeline.segments[index]?.kind
+    return kind === 'prepare' || kind === 'switch' ? index + 1 : index
+  }
 
   const commit = (next: PlayerState) => {
     current = next
     setState(next)
   }
 
+  const nowPlaying = () =>
+    showNowPlaying({ title: locate(current.timeline, position(current, Date.now())).segment.title, practice: props.practice.title, playing: current.phase.status === 'running' })
+
   const persist = () => {
-    if (current.phase.status === 'done' || current.phase.status === 'ready') return
+    if (log || current.phase.status === 'done' || current.phase.status === 'ready') return
     app.saveActive({
+      id: run.id,
       practice: props.practice.id,
       title: props.practice.title,
       kind: props.practice.kind,
-      startedAt: init.startedAt,
+      startedAt: run.startedAt,
       savedAt: Date.now(),
       player: current,
       path: props.path
     })
   }
 
+  const quiet = () => {
+    speaker.stop()
+    silence()
+    setKeepAlive(false)
+    keepAwake.off()
+  }
+
   const finish = (completed: boolean) => {
     const t = Date.now()
+    if (current.phase.status === 'running') commit(pause(current, t))
     const practicedSec = Math.round(practiced(current, t) / 1000)
-    keepAwake.off()
-    setKeepAlive(false)
-    silence()
-    media.dispose()
+    quiet()
+    showNowPlaying(null)
     app.saveActive(null)
     if (!completed && practicedSec < 60) {
-      stopVoice()
       navigate(`/practices/${props.practice.id}`, { replace: true })
       return
     }
@@ -126,7 +158,7 @@ function Session(props: SessionProps) {
       practice: props.practice.id,
       title: props.practice.title,
       kind: props.practice.kind,
-      startedAt: init.startedAt,
+      startedAt: run.startedAt,
       endedAt: t,
       plannedSec: current.timeline.totalSec,
       practicedSec,
@@ -135,69 +167,77 @@ function Session(props: SessionProps) {
     }
     void app.addLog(log)
     if (completed) {
-      playCue({ at: 0, sound: 'end', say: settings.voice.detail === 'quiet' ? undefined : 'Your practice is complete. Take a moment before you move on.' }, settings)
-    } else stopVoice()
+      playCue({ at: 0, sound: 'end', say: settings.voice.detail === 'quiet' ? undefined : 'Your practice is complete. Take a moment before you move on.' }, settings, speaker, -1)
+    }
     setSummary(log)
   }
 
-  const loop = () => {
+  // Runs every frame while visible and every half second while hidden. Safe to
+  // call any number of times: cues already played are behind `lastPos`.
+  const tick = () => {
     const t = Date.now()
-    const before = current
-    if (before.phase.status === 'running') {
-      const after = advance(before, t)
-      if (after !== before) commit(after)
+    if (current.phase.status === 'running') {
+      const after = advance(current, t)
+      if (after !== current) commit(after)
       const pos = position(after, t)
       for (const cue of dueCues(after.timeline, lastPos, Math.min(pos, after.timeline.totalSec * 1000))) {
-        playCue(cue, settings)
-        if (cue.say) setSaid({ index: Number(cue.key.split(':')[0]), text: cue.say })
+        const index = Number(cue.key.split(':')[0])
+        playCue(cue, settings, speaker, topic(index))
+        if (cue.say) setSaid({ index, text: cue.say })
       }
       lastPos = pos
       if (after.phase.status === 'waiting') {
-        playCue({ at: 0, sound: 'tick' }, settings)
+        playCue({ at: 0, sound: 'tick' }, settings, speaker, -1)
         vibrate(settings, 30)
       }
-      if (after.phase.status === 'done') finish(true)
+      if (after.phase.status === 'done') {
+        finish(true)
+        return
+      }
+    }
+    const index = locate(current.timeline, position(current, t)).index
+    if (index !== lastIndex) {
+      const from = current.timeline.segments[lastIndex]?.figure ?? null
+      setMorph({ from: lastIndex === -1 || reduceMotion() ? null : from, at: t })
+      if (lastIndex !== -1 && current.phase.status === 'running') vibrate(settings, [20, 40, 20])
+      lastIndex = index
+      nowPlaying()
     }
     setNow(t)
   }
 
-  const run = () => {
+  const resume = () => {
+    if (log || current.phase.status === 'running' || current.phase.status === 'done') return
+    const t = Date.now()
+    primeForPractice(settings)
+    commit(play(current, t))
+    // Cues at the exact start position are due, so a step skipped to while paused is announced.
+    lastPos = position(current, t) - 1
+    if (!begun()) {
+      setBegun(true)
+      if (search.session !== run.id) setSearch({ session: run.id, resume: undefined }, { replace: true })
+    }
     if (settings.keepAwake) keepAwake.on()
     setKeepAlive(true)
     resumeAudio()
     setAmbient(settings.sound.ambient, settings.sound.ambientVolume)
+    tick()
+    nowPlaying()
   }
 
-  function toggle(want?: boolean) {
-    // Once the practice has ended, the lock-screen play button must not restart it.
+  const hold = () => {
+    if (current.phase.status !== 'running') return
+    commit(pause(current, Date.now()))
+    quiet()
+    persist()
+    tick()
+    nowPlaying()
+  }
+
+  const skip = (direction: 1 | -1) => {
     if (log) return
     const t = Date.now()
-    const playing = current.phase.status === 'running'
-    if (want === playing) return
-    if (playing) {
-      commit(pause(current, t))
-      stopVoice()
-      silence()
-      keepAwake.off()
-      persist()
-    } else {
-      primeForPractice(settings)
-      commit(play(current, t))
-      // Cues at the exact start position are due, so a step skipped to while paused is announced.
-      lastPos = position(current, t) - 1
-      if (!begun()) {
-        setBegun(true)
-        // A reload from here picks the practice up where it was instead of starting over.
-        setSearch({ resume: '1' }, { replace: true })
-      }
-      run()
-      loop()
-    }
-  }
-
-  function skip(direction: 1 | -1) {
-    const t = Date.now()
-    stopVoice()
+    speaker.stop()
     commit(direction === 1 ? next(current, t) : back(current, t))
     if (current.phase.status === 'done') {
       finish(true)
@@ -205,37 +245,15 @@ function Session(props: SessionProps) {
     }
     lastPos = position(current, t) - 1
     persist()
-    loop()
+    tick()
   }
 
   const addTime = () => {
+    if (log) return
     commit(extend(current, Date.now(), 15))
     persist()
     vibrate(settings, 15)
   }
-
-  // When the segment changes, the figure morphs from the previous pose.
-  const morph = createMemo<{ index: number; from: FigurePose | null; at: number }>(prev => {
-    const index = loc().index
-    if (prev && prev.index === index) return prev
-    return untrack(() => ({ index, from: prev && !reduceMotion() ? (state().timeline.segments[prev.index]?.figure ?? null) : null, at: now() }))
-  })
-
-  createEffect(
-    () => loc().index,
-    (index, prev) => {
-      if (prev !== undefined && index !== prev) untrack(() => vibrate(settings, [20, 40, 20]))
-    }
-  )
-
-  const mediaInfo = createMemo(
-    () => {
-      const l = loc()
-      return { title: l.segment.title, practice: props.practice.title, playing: status() === 'running', posSec: Math.floor(l.posMs / 5000) * 5, totalSec: l.totalMs / 1000 }
-    },
-    { equals: (a, b) => a.title === b.title && a.playing === b.playing && a.posSec === b.posSec }
-  )
-  createEffect(mediaInfo, info => media.update(info))
 
   const shown = createMemo<FigurePose | null>(() => {
     const target = segment().figure
@@ -248,83 +266,61 @@ function Session(props: SessionProps) {
     return blend(m.from, target, e)
   })
 
-  onSettled(() => {
-    let raf = 0
-    const frame = () => {
-      loop()
-      raf = requestAnimationFrame(frame)
-    }
+  // The next frame is booked before this one runs, so one failing frame cannot stop the clock.
+  let raf = 0
+  const frame = () => {
     raf = requestAnimationFrame(frame)
-    // rAF stops while hidden; the interval keeps cues and the clock moving.
-    const interval = window.setInterval(() => document.visibilityState === 'hidden' && loop(), 500)
-    const saver = window.setInterval(() => current.phase.status === 'running' && persist(), 5000)
-    const onVisibility = () => {
-      if (document.visibilityState === 'hidden') persist()
-      else {
-        resumeAudio()
-        loop()
-      }
+    tick()
+  }
+  raf = requestAnimationFrame(frame)
+  const background = window.setInterval(() => document.visibilityState === 'hidden' && tick(), 500)
+  const saver = window.setInterval(() => current.phase.status === 'running' && persist(), 5000)
+  const onVisibility = () => {
+    if (document.visibilityState === 'hidden') persist()
+    else {
+      resumeAudio()
+      tick()
     }
-    const onKey = (e: KeyboardEvent) => {
-      // A sheet handles its own keys, and its Escape has already closed it by the time this runs.
-      const inSheet = e.target instanceof Element && e.target.closest('[role="dialog"]')
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || summary() || endOpen() || soundOpen() || inSheet) return
-      if (e.key === ' ') {
-        e.preventDefault()
-        toggle()
-      } else if (e.key === 'ArrowRight') skip(1)
-      else if (e.key === 'ArrowLeft') skip(-1)
-      else if (e.key === 'Escape') setEndOpen(true)
-    }
-    document.addEventListener('visibilitychange', onVisibility)
-    window.addEventListener('pagehide', persist)
-    window.addEventListener('keydown', onKey)
-    if (current.phase.status === 'ready' && recentlyPrimed()) toggle(true)
-    return () => {
-      cancelAnimationFrame(raf)
-      clearInterval(interval)
-      clearInterval(saver)
-      document.removeEventListener('visibilitychange', onVisibility)
-      window.removeEventListener('pagehide', persist)
-      window.removeEventListener('keydown', onKey)
-      if (current.phase.status !== 'done' && !log) persist()
-      stopVoice()
-      silence()
-      setKeepAlive(false)
-      keepAwake.dispose()
-      media.dispose()
-    }
+  }
+  const onKey = (e: KeyboardEvent) => {
+    // A sheet handles its own keys, and its Escape has already closed it by the time this runs.
+    const inSheet = e.target instanceof Element && e.target.closest('[role="dialog"]')
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || summary() || endOpen() || soundOpen() || inSheet) return
+    if (e.key === ' ') {
+      e.preventDefault()
+      if (current.phase.status === 'running') hold()
+      else resume()
+    } else if (e.key === 'ArrowRight') skip(1)
+    else if (e.key === 'ArrowLeft') skip(-1)
+    else if (e.key === 'Escape') setEndOpen(true)
+  }
+  document.addEventListener('visibilitychange', onVisibility)
+  window.addEventListener('pagehide', persist)
+  window.addEventListener('keydown', onKey)
+  onCleanup(() => {
+    cancelAnimationFrame(raf)
+    clearInterval(background)
+    clearInterval(saver)
+    document.removeEventListener('visibilitychange', onVisibility)
+    window.removeEventListener('pagehide', persist)
+    window.removeEventListener('keydown', onKey)
+    persist()
+    quiet()
+    keepAwake.dispose()
+    showNowPlaying(null)
   })
+  // Arriving from a Begin tap starts straight away; a reload or a shared link waits for a tap.
+  if (!run.resumed && recentlyPrimed()) resume()
 
   const upNext = createMemo(() => {
     const segs = state().timeline.segments
-    const isGap = (k: string) => k === 'prepare' || k === 'switch'
-    // During a get-ready gap the step being prepared is already on screen, so look past it.
-    let skip = isGap(segs[loc().index]!.kind) ? 1 : 0
-    for (let i = loc().index + 1; i < segs.length; i++) {
-      if (isGap(segs[i]!.kind)) continue
-      if (skip-- > 0) continue
-      return segs[i]
-    }
-    return undefined
+    const k = stepOf(stepList, loc().index)
+    const after = stepList[k + 1]
+    if (!after) return undefined
+    return segs.slice(after.first, after.last + 1).find(seg => seg.kind !== 'prepare' && seg.kind !== 'switch')
   })
 
-  const stepCount = createMemo(() => {
-    const segs = state().timeline.segments
-    // Counted the way the outline lists them: a whole flow is one step, and a
-    // get-ready gap belongs to the step it introduces.
-    const isGap = (k: string) => k === 'prepare' || k === 'switch'
-    const firsts: number[] = []
-    segs.forEach((seg, i) => {
-      if (isGap(seg.kind)) return
-      const prev = segs[firsts.at(-1) ?? -1]
-      if (seg.kind === 'flow' && prev?.kind === 'flow' && prev.item === seg.item) return
-      firsts.push(i)
-    })
-    const target = segs.findIndex((seg, i) => i >= loc().index && !isGap(seg.kind))
-    const at = firsts.filter(i => i <= (target === -1 ? segs.length : target)).length
-    return { at: Math.max(1, at), of: firsts.length }
-  })
+  const stepCount = createMemo(() => ({ at: stepOf(stepList, loc().index) + 1, of: stepList.length }))
 
   const remaining = () => loc().remainingMs / 1000
   const fraction = () => {
@@ -391,7 +387,7 @@ function Session(props: SessionProps) {
           <Show
             when={status() !== 'waiting'}
             fallback={
-              <button class="btn primary big ready-btn" onClick={() => toggle(true)}>
+              <button class="btn primary big ready-btn" onClick={() => resume()}>
                 I'm ready
               </button>
             }
@@ -403,14 +399,14 @@ function Session(props: SessionProps) {
         </section>
 
         <nav class="player-controls" aria-label="Playback">
-          <button class="icon-btn" aria-label="Previous" onClick={() => skip(-1)}>
-            <Icon name="prev" fill size={22} />
+          <button class="skip-btn" aria-label="Previous" onClick={() => skip(-1)}>
+            <Icon name="prev" fill size={26} />
           </button>
-          <button class="play-btn" aria-label={status() === 'running' ? 'Pause' : 'Play'} onClick={() => toggle()}>
-            <Icon name={status() === 'running' ? 'pause' : 'play'} fill size={30} />
+          <button class="play-btn" aria-label={status() === 'running' ? 'Pause' : 'Play'} onClick={() => (status() === 'running' ? hold() : resume())}>
+            <Icon name={status() === 'running' ? 'pause' : 'play'} fill size={32} />
           </button>
-          <button class="icon-btn" aria-label="Next" onClick={() => skip(1)}>
-            <Icon name="next" fill size={22} />
+          <button class="skip-btn" aria-label="Next" onClick={() => skip(1)}>
+            <Icon name="next" fill size={26} />
           </button>
         </nav>
 
@@ -432,11 +428,11 @@ function Session(props: SessionProps) {
         <Show when={!begun()}>
           <div class="player-gate">
             <div class="gate-card">
-              <p class="eyebrow">{init.resumed ? 'Pick up where you left off' : minutes(state().timeline.totalSec)}</p>
+              <p class="eyebrow">{run.resumed ? 'Pick up where you left off' : minutes(state().timeline.totalSec)}</p>
               <h2 class="display">{props.practice.title}</h2>
               <p class="muted">{settings.keepAwake ? 'Your screen stays on while you practise. Tap pause any time.' : 'Tap pause any time.'}</p>
-              <button class="btn primary big block" onClick={() => toggle(true)}>
-                <Icon name="play" fill size={18} /> {init.resumed ? 'Resume' : 'Begin'}
+              <button class="btn primary big block" onClick={() => resume()}>
+                <Icon name="play" fill size={18} /> {run.resumed ? 'Resume' : 'Begin'}
               </button>
             </div>
           </div>
@@ -452,7 +448,6 @@ function Session(props: SessionProps) {
               class="btn primary block"
               onClick={() => {
                 setEndOpen(false)
-                if (current.phase.status === 'running') commit(pause(current, Date.now()))
                 finish(false)
               }}
             >
@@ -484,7 +479,7 @@ function Session(props: SessionProps) {
                   app.updateSettings(s => {
                     s.voice.enabled = v !== 'off'
                     if (v !== 'off') s.voice.detail = v as 'names' | 'full'
-                    if (v === 'off') stopVoice()
+                    if (v === 'off') speaker.stop()
                   })
                 }
               />

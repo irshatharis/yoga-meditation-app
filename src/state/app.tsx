@@ -1,14 +1,16 @@
-import { createContext, createEffect, createMemo, createSignal, createStore, deep, reconcile, snapshot, untrack, useContext } from 'solid-js'
+import { createContext, createMemo, createSignal, createStore, flush, reconcile, snapshot, untrack, useContext } from 'solid-js'
 import type { JSX } from '@solidjs/web'
 import { POSES } from '../content/poses'
 import { PRACTICES } from '../content/practices'
 import { PATHS } from '../content/paths'
 import { mediaBlobs, type Path, type Pose, type PoseId, type Practice, type PracticeId, type SessionLog, type Settings } from '../domain/types'
 import * as db from '../store/db'
-import { parseSettings } from '../store/schema'
+import { parseSettings, settingsRecord } from '../store/schema'
 import type { PlayerState } from '../domain/player'
 
 export type ActiveSession = {
+  // Absent on sessions saved before runs had ids.
+  id?: string
   practice: PracticeId
   title: string
   kind: Practice['kind']
@@ -46,17 +48,23 @@ export async function loadAll(): Promise<Loaded> {
   }
 }
 
+function applyAppearance(settings: Settings) {
+  const root = document.documentElement
+  if (settings.theme === 'system') delete root.dataset.theme
+  else root.dataset.theme = settings.theme
+  if (settings.motion === 'reduce') root.dataset.motion = 'reduce'
+  else delete root.dataset.motion
+  const dark = settings.theme === 'dark' || (settings.theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#15130f' : '#f5efe5')
+}
+
 function createApp(initial: Loaded) {
   const [settings, setSettings] = createStore<Settings>(initial.settings)
   const [mine, setMine] = createStore({ poses: initial.poses, practices: initial.practices, favorites: initial.favorites })
   const [history, setHistory] = createStore({ logs: initial.logs })
   const [active, setActive] = createSignal<ActiveSession | null>(initial.active)
 
-  createEffect(
-    () => deep(settings),
-    () => void db.setKV('settings', snapshot(settings)),
-    { defer: true }
-  )
+  applyAppearance(settings)
 
   // Settings and favorites are written whole, so another open tab would write
   // its stale copy over a newer change. Tabs tell each other instead.
@@ -66,7 +74,11 @@ function createApp(initial: Loaded) {
   channel?.addEventListener('message', (e: MessageEvent<Sync>) => {
     const msg = e.data
     if ('erased' in msg) location.reload()
-    else if ('settings' in msg) setSettings(s => void reconcile(msg.settings, 'id')(s))
+    else if ('settings' in msg) {
+      setSettings(s => void reconcile(msg.settings, 'id')(s))
+      flush()
+      applyAppearance(settings)
+    }
     else setMine(s => void s.favorites.splice(0, s.favorites.length, ...msg.favorites))
   })
 
@@ -95,9 +107,14 @@ function createApp(initial: Loaded) {
 
   return {
     settings,
+    // Every settings change goes through here: the store, the page's theme, storage and other tabs.
     updateSettings(fn: (draft: Settings) => void) {
       setSettings(fn)
-      queueMicrotask(() => tell({ settings: snapshot(settings) }))
+      // Store writes land at the end of the tick unless flushed, and what follows reads them.
+      flush()
+      applyAppearance(settings)
+      void db.setKV('settings', settingsRecord(settings))
+      tell({ settings: snapshot(settings) })
     },
     poses,
     practices,
@@ -174,13 +191,16 @@ function createApp(initial: Loaded) {
       if (records.settings) {
         const next = records.settings
         setSettings(() => next)
+        flush()
+        applyAppearance(settings)
         tell({ settings: next })
       }
       await Promise.all([
         db.putMany('poses', records.poses),
         db.putMany('practices', records.practices),
         db.putMany('logs', records.logs),
-        db.putMany('blobs', records.blobs)
+        db.putMany('blobs', records.blobs),
+        ...(records.settings ? [db.setKV('settings', settingsRecord(settings))] : [])
       ])
     },
     async eraseEverything() {

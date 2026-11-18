@@ -43,7 +43,8 @@ test('pausing silences a ringing bell', async ({ page }) => {
   await page.goto('/practices/morning-flow')
   await page.getByRole('button', { name: /^Begin/ }).click()
   await page.getByRole('button', { name: 'Next' }).click()
-  await expect.poll(() => level(page), { timeout: 8_000 }).toBeGreaterThan(0.01)
+  // Cat and cow starts with a bell once its get-ready gap is over.
+  await expect.poll(() => level(page), { timeout: 15_000 }).toBeGreaterThan(0.01)
 
   await page.getByRole('button', { name: 'Pause' }).click()
   await page.waitForTimeout(1_500)

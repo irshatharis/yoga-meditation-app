@@ -1,4 +1,4 @@
-import { createSignal, For, onSettled, Show } from 'solid-js'
+import { createSignal, For, Show } from 'solid-js'
 import { useNavigate } from '@solidjs/router'
 import { useApp } from '../state/app'
 import { compile } from '../domain/timeline'
@@ -14,14 +14,9 @@ export default function ShareImport() {
   const [share, setShare] = createSignal<Share | null>(null)
   const [error, setError] = createSignal('')
 
-  onSettled(() => {
-    const code = location.hash.slice(1)
-    if (!code) {
-      setError('This link has no practice in it.')
-      return
-    }
-    void decodeShare(code).then(r => (r.ok ? setShare(r.value) : setError(r.message)))
-  })
+  const code = location.hash.slice(1)
+  if (code) void decodeShare(code).then(r => (r.ok ? setShare(r.value) : setError(r.message)))
+  else setError('This link has no practice in it.')
 
   const library = () => {
     const map = new Map(app.poses())

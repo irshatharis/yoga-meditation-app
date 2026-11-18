@@ -1,4 +1,4 @@
-import { createMemo, createSignal, For, onSettled, Show } from 'solid-js'
+import { createMemo, createSignal, For, onCleanup, Show } from 'solid-js'
 import { useNavigate } from '@solidjs/router'
 import { useApp } from '../state/app'
 import { dayKey, minutesOn, streaks, weekDays, parseDay } from '../domain/stats'
@@ -7,6 +7,7 @@ import { KIND_LABEL, PracticeArt, PracticeCard, clock, minutes } from '../ui/kit
 import { estimateSec } from '../domain/timeline'
 import { locate } from '../domain/player'
 import { primeForPractice } from '../engine/session'
+import { newId } from '../store/transfer'
 import type { Practice } from '../domain/types'
 import { SOURCE_URL } from '../seo'
 
@@ -27,11 +28,9 @@ export default function Today() {
   const navigate = useNavigate()
   // An installed app resumes without reloading, so the time is read again on return.
   const [stamp, setStamp] = createSignal(Date.now())
-  onSettled(() => {
-    const check = () => setStamp(Date.now())
-    document.addEventListener('visibilitychange', check)
-    return () => document.removeEventListener('visibilitychange', check)
-  })
+  const check = () => setStamp(Date.now())
+  document.addEventListener('visibilitychange', check)
+  onCleanup(() => document.removeEventListener('visibilitychange', check))
   const hour = createMemo(() => new Date(stamp()).getHours())
   const today = createMemo(() => dayKey(stamp()))
   const streak = createMemo(() => streaks(app.logs(), today()))
@@ -65,7 +64,7 @@ export default function Today() {
 
   const begin = (p: Practice) => {
     primeForPractice(app.settings)
-    navigate(`/play/${p.id}`)
+    navigate(`/play/${p.id}?session=${newId('run')}`)
   }
 
   const picks = (kind: Practice['kind']) => app.practices().filter(p => p.kind === kind && p.origin === 'builtin').slice(0, 3)
@@ -90,7 +89,7 @@ export default function Today() {
 
       <Show when={resume()}>
         {r => (
-          <a class="banner" href={`/play/${r().practice}?resume=1`}>
+          <a class="banner" href={`/play/${r().practice}?session=${r().id ?? 'resume'}`}>
             <Icon name="play" fill size={18} />
             <div class="grow">
               <strong>Resume {r().title}</strong>

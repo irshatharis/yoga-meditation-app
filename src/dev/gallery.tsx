@@ -1,5 +1,5 @@
 import { render } from '@solidjs/web'
-import { For, Show, createSignal, onSettled } from 'solid-js'
+import { For, Show, createSignal, onCleanup } from 'solid-js'
 import { Figure } from '../figure/Figure'
 import { blend, mirror, type FigurePose } from '../figure/skeleton'
 import { POSES } from '../content/poses'
@@ -72,15 +72,13 @@ function Strip(props: { ids: string[] }) {
 
 function LiveMorph(props: { ids: string[] }) {
   const [t, setT] = createSignal(0)
-  onSettled(() => {
-    let raf = 0
-    const tick = (now: number) => {
-      setT(now / 1800)
-      raf = requestAnimationFrame(tick)
-    }
+  let raf = 0
+  const tick = (now: number) => {
+    setT(now / 1800)
     raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  })
+  }
+  raf = requestAnimationFrame(tick)
+  onCleanup(() => cancelAnimationFrame(raf))
   const pose = () => {
     const n = props.ids.length
     const i = Math.floor(t()) % n

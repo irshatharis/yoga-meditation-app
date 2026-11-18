@@ -150,7 +150,7 @@ export function compile(practice: Practice, library: ReadonlyMap<PoseId, Pose>, 
               side,
               cues: [
                 ...(round === 1 && s === 0 ? [{ at: 0, sound: 'bell' as const }] : []),
-                { at: 0, say: detail === 'quiet' ? undefined : step.cue }
+                { at: 0, say: detail === 'full' ? step.cue : detail === 'names' ? pose.name : undefined }
               ],
               item: index
             })

@@ -112,17 +112,49 @@ export function seek(state: PlayerState, now: number, posMs: number): PlayerStat
   return { ...state, opened, phase }
 }
 
-export function next(state: PlayerState, now: number): PlayerState {
-  const { index } = locate(state.timeline, position(state, now))
-  if (index >= state.timeline.segments.length - 1) return { ...state, practicedMs: practiced(state, now), phase: { status: 'done', posMs: totalMs(state.timeline) } }
-  return seek(state, now, segmentStartMs(state.timeline, index + 1))
+// A step is what the person counts and skips: one pose or side with the
+// get-ready gap before it, a whole flow, a sit, a breath practice or a rest.
+export type Step = { first: number; last: number }
+
+const isGap = (s: Segment) => s.kind === 'prepare' || s.kind === 'switch'
+
+export function steps(timeline: Timeline): Step[] {
+  const out: Step[] = []
+  let gap: number | null = null
+  timeline.segments.forEach((seg, i) => {
+    if (isGap(seg)) {
+      gap ??= i
+      return
+    }
+    const prev = out.at(-1)
+    const before = prev && timeline.segments[prev.last]
+    if (gap === null && before && seg.kind === 'flow' && before.kind === 'flow' && before.item === seg.item) prev.last = i
+    else {
+      out.push({ first: gap ?? i, last: i })
+      gap = null
+    }
+  })
+  if (gap !== null) out.push({ first: gap, last: timeline.segments.length - 1 })
+  return out
 }
 
-// Back restarts the current segment, or goes to the previous one when already near its start.
+export const stepOf = (list: Step[], segment: number) => Math.max(0, list.findIndex(s => segment <= s.last))
+
+export function next(state: PlayerState, now: number): PlayerState {
+  const list = steps(state.timeline)
+  const k = stepOf(list, locate(state.timeline, position(state, now)).index)
+  if (k >= list.length - 1) return { ...state, practicedMs: practiced(state, now), phase: { status: 'done', posMs: totalMs(state.timeline) } }
+  return seek(state, now, segmentStartMs(state.timeline, list[k + 1]!.first))
+}
+
+// Back restarts the current step, or goes to the previous one when already near its start.
 export function back(state: PlayerState, now: number): PlayerState {
-  const at = locate(state.timeline, position(state, now))
-  const target = at.intoMs > 3000 || at.index === 0 ? at.index : at.index - 1
-  return seek(state, now, segmentStartMs(state.timeline, target))
+  const list = steps(state.timeline)
+  const pos = position(state, now)
+  const k = stepOf(list, locate(state.timeline, pos).index)
+  const startMs = segmentStartMs(state.timeline, list[k]!.first)
+  const target = pos - startMs > 3000 || k === 0 ? k : k - 1
+  return seek(state, now, segmentStartMs(state.timeline, list[target]!.first))
 }
 
 export function extend(state: PlayerState, now: number, seconds: number): PlayerState {

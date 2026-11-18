@@ -1,4 +1,4 @@
-import { createSignal, For, onSettled, Show } from 'solid-js'
+import { createSignal, For, onCleanup, Show, untrack } from 'solid-js'
 import type { BlobId, MediaRef } from '../domain/types'
 import { getBlob, put } from '../store/db'
 import { newId } from '../store/transfer'
@@ -37,16 +37,16 @@ export function addMediaLink(raw: string): MediaRef | null {
 
 function BlobMedia(props: { item: Extract<MediaRef, { blob: BlobId }> }) {
   const [url, setUrl] = createSignal<string | null>(null)
-  onSettled(() => {
-    let objectUrl: string | null = null
-    void getBlob(props.item.blob).then(stored => {
-      if (!stored) return
-      objectUrl = URL.createObjectURL(stored.blob)
-      setUrl(objectUrl)
-    })
-    return () => {
-      if (objectUrl) URL.revokeObjectURL(objectUrl)
-    }
+  let objectUrl: string | null = null
+  let gone = false
+  void getBlob(untrack(() => props.item.blob)).then(stored => {
+    if (!stored || gone) return
+    objectUrl = URL.createObjectURL(stored.blob)
+    setUrl(objectUrl)
+  })
+  onCleanup(() => {
+    gone = true
+    if (objectUrl) URL.revokeObjectURL(objectUrl)
   })
   return (
     <Show when={url()} fallback={<div class="media-missing">Media not on this device</div>}>

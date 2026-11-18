@@ -1,4 +1,4 @@
-import { createMemo, createSignal, For, onSettled, Show, untrack } from 'solid-js'
+import { createMemo, createSignal, For, onCleanup, Show, untrack } from 'solid-js'
 import { useApp } from '../state/app'
 import { addDays, byDay, dayKey, parseDay, streaks, totals, type DayKey } from '../domain/stats'
 import { Icon } from '../ui/icons'
@@ -12,15 +12,13 @@ export default function Journal() {
   // An installed app resumes without reloading, so today is checked again on return.
   const [today, setToday] = createSignal(dayKey(Date.now()))
   const [selected, setSelected] = createSignal<DayKey>(untrack(today))
-  onSettled(() => {
-    const check = () => {
-      const next = dayKey(Date.now())
-      if (selected() === today()) setSelected(next)
-      setToday(next)
-    }
-    document.addEventListener('visibilitychange', check)
-    return () => document.removeEventListener('visibilitychange', check)
-  })
+  const check = () => {
+    const next = dayKey(Date.now())
+    if (selected() === today()) setSelected(next)
+    setToday(next)
+  }
+  document.addEventListener('visibilitychange', check)
+  onCleanup(() => document.removeEventListener('visibilitychange', check))
   const [monthsShown, setMonthsShown] = createSignal(3)
   const [editing, setEditing] = createSignal<SessionLog | null>(null)
   const days = createMemo(() => byDay(app.logs()))

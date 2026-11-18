@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import * as v from 'valibot'
 import { POSES } from '../../src/content/poses'
 import { PRACTICES } from '../../src/content/practices'
-import { PoseSchema, PracticeSchema } from '../../src/store/schema'
+import { DEFAULT_SETTINGS } from '../../src/domain/types'
+import { parseSettings, PoseSchema, PracticeSchema, settingsRecord } from '../../src/store/schema'
 
 // Built-in content goes through the same schemas as imports and share links,
 // so a renderer or model change that the schema misses fails here.
@@ -24,5 +25,25 @@ describe('pose media links from files and share links', () => {
   })
   it.each(['javascript:alert(1)', 'data:text/html,<script>alert(1)</script>', 'file:///etc/passwd'])('rejects %s', href => {
     expect(v.is(PoseSchema, withLink(href))).toBe(false)
+  })
+})
+
+describe('parseSettings', () => {
+  it('speaks pose names only by default', () => {
+    expect(parseSettings(undefined).voice.detail).toBe('names')
+  })
+
+  it('moves settings saved under the old full-guidance default to names', () => {
+    const old = { ...DEFAULT_SETTINGS, voice: { ...DEFAULT_SETTINGS.voice, detail: 'full' } }
+    expect(parseSettings(old).voice.detail).toBe('names')
+  })
+
+  it('keeps full guidance once someone has chosen it', () => {
+    const chosen = settingsRecord({ ...DEFAULT_SETTINGS, voice: { ...DEFAULT_SETTINGS.voice, detail: 'full' } })
+    expect(parseSettings(chosen).voice.detail).toBe('full')
+  })
+
+  it('keeps quiet as it was', () => {
+    expect(parseSettings({ voice: { detail: 'quiet' } }).voice.detail).toBe('quiet')
   })
 })
