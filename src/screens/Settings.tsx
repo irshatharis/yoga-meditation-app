@@ -176,7 +176,7 @@ export default function SettingsScreen() {
           <div class="setting" style={{ 'flex-wrap': 'wrap' }}>
             <div>
               <strong>Voice</strong>
-              <small>{pickVoice(s.voice.voiceURI)?.name ?? 'Device default'}</small>
+              <small>{(voices().length ? pickVoice(s.voice.voiceURI)?.name : undefined) ?? 'Device default'}</small>
             </div>
             <select class="input" style={{ width: 'auto', 'max-width': '100%' }} value={s.voice.voiceURI ?? ''} onChange={e => set(d => void (d.voice.voiceURI = e.currentTarget.value || null))} aria-label="Voice">
               <option value="">Best available</option>
