@@ -25,11 +25,15 @@ function open(): Promise<IDBDatabase> {
   return opening
 }
 
+// Chromium aborts a transaction that is still open when the page goes away,
+// so a write asks to commit at once instead of when the tab next goes idle.
+// Closing the app right after a tap then keeps the change.
 const done = (tx: IDBTransaction) =>
   new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => resolve()
     tx.onerror = () => reject(tx.error)
     tx.onabort = () => reject(tx.error)
+    tx.commit?.()
   })
 
 const result = <T>(req: IDBRequest<T>) =>
