@@ -156,10 +156,10 @@ function Detail(props: { practice: Practice }) {
         <Show
           when={props.practice.adjustable}
           fallback={
-            <div class="setting" style={{ padding: 0 }}>
+            <div class="stack">
               <div>
                 <strong>Length</strong>
-                <small>Holds and rests scale together</small>
+                <div class="small muted">Holds and rests scale together</div>
               </div>
               <Segmented label="Length" value={scale()} options={SCALES} onChange={setScale} />
             </div>
