@@ -2,7 +2,7 @@ import { createEffect, createMemo, createSignal, For, Match, onSettled, Show, Sw
 import { useNavigate, useParams, useSearchParams } from '@solidjs/router'
 import { Figure } from '../figure/Figure'
 import { blend, type FigurePose } from '../figure/skeleton'
-import { advance, back, dueCues, extend, locate, next, pause, play, position, start, type PlayerState } from '../domain/player'
+import { advance, back, dueCues, extend, locate, next, pause, play, position, practiced, start, type PlayerState } from '../domain/player'
 import { compile, type Segment, type Timeline } from '../domain/timeline'
 import type { PathId, Practice, SessionLog } from '../domain/types'
 import { createKeepAwake, type AwakeState } from '../engine/awake'
@@ -42,19 +42,23 @@ function Missing() {
 
 type SessionProps = { practice: Practice; resume: boolean; lengthSec?: number; scale?: number; bells?: number; path?: { id: PathId; day: number } }
 
-function initialState(props: SessionProps, active: ActiveSession | null, build: () => Timeline): { state: PlayerState; startedAt: number } {
+function initialState(props: SessionProps, active: ActiveSession | null, build: () => Timeline): { state: PlayerState; startedAt: number; resumed: boolean } {
   if (props.resume && active && active.practice === props.practice.id) {
     const s = active.player
     // Time kept passing while the app was closed. Resume where it was saved.
     const posMs = s.phase.status === 'running' ? active.savedAt - s.phase.originMs : 'posMs' in s.phase ? s.phase.posMs : 0
-    return { state: { ...s, phase: { status: 'paused', posMs } }, startedAt: active.startedAt }
+    // Sessions saved before practised time was tracked count their position instead.
+    const kept = practiced(s, active.savedAt)
+    const practicedMs = Number.isFinite(kept) ? kept : posMs
+    return { state: { ...s, practicedMs, phase: { status: 'paused', posMs } }, startedAt: active.startedAt, resumed: true }
   }
-  return { state: start(build()), startedAt: Date.now() }
+  return { state: start(build()), startedAt: Date.now(), resumed: false }
 }
 
 function Session(props: SessionProps) {
   const app = useApp()
   const navigate = useNavigate()
+  const [, setSearch] = useSearchParams()
   const settings = app.settings
   const init = untrack(() =>
     initialState(props, app.active(), () => compile(props.practice, app.poses(), settings, { lengthSec: props.lengthSec, scale: props.scale, intervalBellSec: props.bells }))
@@ -69,6 +73,7 @@ function Session(props: SessionProps) {
   const [endOpen, setEndOpen] = createSignal(false)
   const [soundOpen, setSoundOpen] = createSignal(false)
   const [summary, setSummary] = createSignal<SessionLog | null>(null)
+  const [begun, setBegun] = createSignal(false)
   // The last spoken line, tagged with its segment so it clears itself when the segment changes.
   const [said, setSaid] = createSignal<{ index: number; text: string } | null>(null)
 
@@ -105,7 +110,7 @@ function Session(props: SessionProps) {
 
   const finish = (completed: boolean) => {
     const t = Date.now()
-    const practicedSec = Math.round(position(current, t) / 1000)
+    const practicedSec = Math.round(practiced(current, t) / 1000)
     keepAwake.off()
     setKeepAlive(false)
     silence()
@@ -157,7 +162,7 @@ function Session(props: SessionProps) {
   }
 
   const run = () => {
-    keepAwake.on()
+    if (settings.keepAwake) keepAwake.on()
     setKeepAlive(true)
     resumeAudio()
     setAmbient(settings.sound.ambient, settings.sound.ambientVolume)
@@ -177,9 +182,14 @@ function Session(props: SessionProps) {
       persist()
     } else {
       primeForPractice(settings)
-      const wasWaiting = current.phase.status === 'waiting'
       commit(play(current, t))
-      lastPos = wasWaiting || current.phase.status === 'running' && lastPos < 0 ? position(current, t) - 1 : position(current, t)
+      // Cues at the exact start position are due, so a step skipped to while paused is announced.
+      lastPos = position(current, t) - 1
+      if (!begun()) {
+        setBegun(true)
+        // A reload from here picks the practice up where it was instead of starting over.
+        setSearch({ resume: '1' }, { replace: true })
+      }
       run()
       loop()
     }
@@ -194,11 +204,13 @@ function Session(props: SessionProps) {
       return
     }
     lastPos = position(current, t) - 1
+    persist()
     loop()
   }
 
   const addTime = () => {
     commit(extend(current, Date.now(), 15))
+    persist()
     vibrate(settings, 15)
   }
 
@@ -254,7 +266,9 @@ function Session(props: SessionProps) {
       }
     }
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || summary()) return
+      // A sheet handles its own keys, and its Escape has already closed it by the time this runs.
+      const inSheet = e.target instanceof Element && e.target.closest('[role="dialog"]')
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || summary() || endOpen() || soundOpen() || inSheet) return
       if (e.key === ' ') {
         e.preventDefault()
         toggle()
@@ -415,14 +429,14 @@ function Session(props: SessionProps) {
           <span class="muted small tabular">{clock((loc().totalMs - loc().posMs) / 1000)} left</span>
         </footer>
 
-        <Show when={status() === 'ready' || (status() === 'paused' && lastPos < 0)}>
+        <Show when={!begun()}>
           <div class="player-gate">
             <div class="gate-card">
-              <p class="eyebrow">{props.resume ? 'Pick up where you left off' : minutes(state().timeline.totalSec)}</p>
+              <p class="eyebrow">{init.resumed ? 'Pick up where you left off' : minutes(state().timeline.totalSec)}</p>
               <h2 class="display">{props.practice.title}</h2>
               <p class="muted">Your screen stays on while you practise. Tap pause any time.</p>
               <button class="btn primary big block" onClick={() => toggle(true)}>
-                <Icon name="play" fill size={18} /> {props.resume ? 'Resume' : 'Begin'}
+                <Icon name="play" fill size={18} /> {init.resumed ? 'Resume' : 'Begin'}
               </button>
             </div>
           </div>
@@ -432,7 +446,7 @@ function Session(props: SessionProps) {
           <div class="stack">
             <h2 class="display">End this practice?</h2>
             <p class="muted">
-              {loc().posMs >= 60000 ? `You have practised for ${minutes(loc().posMs / 1000)}. It will be saved to your journal.` : 'Less than a minute in, so nothing will be saved.'}
+              {practiced(state(), now()) >= 60000 ? `You have practised for ${minutes(practiced(state(), now()) / 1000)}. It will be saved to your journal.` : 'Less than a minute in, so nothing will be saved.'}
             </p>
             <button
               class="btn primary block"
