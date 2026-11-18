@@ -1,5 +1,6 @@
 import { createSignal, For, onSettled, Show, snapshot } from 'solid-js'
 import type { JSX } from '@solidjs/web'
+import { useNavigate } from '@solidjs/router'
 import { useApp } from '../state/app'
 import { listVoices, onVoicesChanged, pickVoice, speak } from '../engine/speech'
 import { bell, setAmbient, unlockAudio } from '../engine/audio'
@@ -38,6 +39,7 @@ function Group(props: { title: string; id?: string; children: JSX.Element }) {
 
 export default function SettingsScreen() {
   const app = useApp()
+  const navigate = useNavigate()
   const s = app.settings
   const set = (fn: (d: Settings) => void) => app.updateSettings(fn)
   const [voices, setVoices] = createSignal<SpeechSynthesisVoice[]>([])
@@ -118,7 +120,7 @@ export default function SettingsScreen() {
   return (
     <main class="page">
       <header class="topbar">
-        <button class="icon-btn" aria-label="Back" onClick={() => history.back()}>
+        <button class="icon-btn" aria-label="Back" onClick={() => (history.length > 1 ? history.back() : navigate('/'))}>
           <Icon name="back" />
         </button>
         <strong>Settings</strong>
