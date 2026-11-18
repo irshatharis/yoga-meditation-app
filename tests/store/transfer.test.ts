@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { backupBlob, parseBackup } from '../../src/store/transfer'
+import { backupBlob, parseBackup, planMerge, resolveMerge } from '../../src/store/transfer'
 import { DEFAULT_SETTINGS, poseId, practiceId, type BlobId, type Pose, type Practice, type SessionLog } from '../../src/domain/types'
 import type { StoredBlob } from '../../src/store/db'
 
@@ -51,5 +51,25 @@ describe('backups', () => {
 
   it('rejects a file that is not JSON', () => {
     expect(parseBackup(new TextEncoder().encode('PK\u0003\u0004 zip'))).toEqual({ ok: false, message: 'This file is not valid JSON.' })
+  })
+})
+
+describe('merging a backup', () => {
+  const incoming = async () => {
+    const out = parseBackup(await fileBytes(await backupBlob(snap, false)))
+    if (!out.ok) throw new Error(out.message)
+    return out.value.backup
+  }
+
+  it('adds nothing when the same backup is imported again', async () => {
+    const plan = planMerge({ poses: [pose], practices: [practice], logs: [log] }, await incoming())
+    expect(resolveMerge(plan, 'copy')).toEqual({ poses: [], practices: [], logs: [] })
+  })
+
+  it('still offers a copy of a record that changed since the backup', async () => {
+    const edited = { ...practice, title: 'Morning, longer' }
+    const out = resolveMerge(planMerge({ poses: [pose], practices: [edited], logs: [log] }, await incoming()), 'copy')
+    expect(out.practices.map(p => p.title)).toEqual(['Morning (imported)'])
+    expect(out.poses).toEqual([])
   })
 })
