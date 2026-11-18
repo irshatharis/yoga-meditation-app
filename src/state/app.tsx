@@ -3,7 +3,7 @@ import type { JSX } from '@solidjs/web'
 import { POSES } from '../content/poses'
 import { PRACTICES } from '../content/practices'
 import { PATHS } from '../content/paths'
-import type { Path, Pose, PoseId, Practice, PracticeId, SessionLog, Settings } from '../domain/types'
+import { mediaBlobs, type Path, type Pose, type PoseId, type Practice, type PracticeId, type SessionLog, type Settings } from '../domain/types'
 import * as db from '../store/db'
 import { parseSettings } from '../store/schema'
 import type { PlayerState } from '../domain/player'
@@ -74,6 +74,12 @@ function createApp(initial: Loaded) {
     if (i !== -1) list.splice(i, 1)
   }
 
+  // Imported copies of a pose share media ids, so only media no pose uses is deleted.
+  const dropUnused = async (blobs: Set<string>) => {
+    const used = mediaBlobs(mine.poses)
+    await Promise.all([...blobs].filter(id => !used.has(id)).map(id => db.remove('blobs', id)))
+  }
+
   return {
     settings,
     updateSettings(fn: (draft: Settings) => void) {
@@ -103,12 +109,16 @@ function createApp(initial: Loaded) {
     },
     async savePose(pose: Pose) {
       const plain = snapshot(pose)
+      const before = mediaBlobs(mine.poses.filter(p => p.id === plain.id))
       setMine(s => upsert(s.poses, plain))
       await db.put('poses', plain)
+      await dropUnused(before)
     },
     async deletePose(id: PoseId) {
+      const before = mediaBlobs(mine.poses.filter(p => p.id === id))
       setMine(s => drop(s.poses, id))
       await db.remove('poses', id)
+      await dropUnused(before)
     },
     async savePractice(practice: Practice) {
       const stamped = { ...snapshot(practice), updatedAt: Date.now() }

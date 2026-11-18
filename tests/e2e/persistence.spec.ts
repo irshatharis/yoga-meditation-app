@@ -33,6 +33,7 @@ test('a journal note on a path session survives a reload', async ({ page }) => {
   await page.getByRole('button', { name: /Desk break/ }).click()
   await page.getByPlaceholder('Notes').fill('Hips felt open')
   await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByPlaceholder('Notes')).toHaveCount(0)
   await page.reload()
   await expect(page.getByText('Hips felt open')).toBeVisible()
 })

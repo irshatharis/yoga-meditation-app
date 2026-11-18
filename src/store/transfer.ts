@@ -1,5 +1,5 @@
 import * as v from 'valibot'
-import type { Pose, Practice, SessionLog, Settings } from '../domain/types'
+import { mediaBlobs, type Pose, type Practice, type SessionLog, type Settings } from '../domain/types'
 import { BackupSchema, ShareSchema } from './schema'
 import type { StoredBlob } from './db'
 
@@ -57,7 +57,8 @@ function decodeBase64(src: Uint8Array): Uint8Array {
 export async function backupBlob(snap: Snapshot, includeMedia: boolean): Promise<Blob> {
   const backup: Backup = { app: 'still', format: 1, exportedAt: Date.now(), settings: snap.settings, poses: snap.poses, practices: snap.practices, logs: snap.logs, media: [] }
   const parts: BlobPart[] = [JSON.stringify(backup).slice(0, -2)]
-  for (const [i, b] of (includeMedia ? snap.blobs : []).entries()) {
+  const used = mediaBlobs(snap.poses)
+  for (const [i, b] of (includeMedia ? snap.blobs.filter(b => used.has(b.id)) : []).entries()) {
     const meta = JSON.stringify({ id: b.id, mime: b.mime, name: b.name }).slice(0, -1)
     parts.push(new Blob([`${i ? ',' : ''}${meta},"data":"`, toBase64(new Uint8Array(await b.blob.arrayBuffer())), '"}']))
   }
