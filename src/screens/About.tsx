@@ -1,6 +1,7 @@
 import { Figure } from '../figure/Figure'
 import { useApp } from '../state/app'
 import { Icon } from '../ui/icons'
+import { useBack } from '../ui/kit'
 
 const SOUNDS = [
   ['Singing bowl', 'zambolino', 'https://freesound.org/people/zambolino/sounds/439235/'],
@@ -16,10 +17,11 @@ const SOUNDS = [
 export default function About() {
   const app = useApp()
   const tree = () => app.pose('tree')?.figure
+  const back = useBack(() => '/')
   return (
     <main class="page prose">
       <header class="topbar">
-        <button class="icon-btn" aria-label="Back" onClick={() => history.back()}>
+        <button class="icon-btn" aria-label="Back" onClick={back}>
           <Icon name="back" />
         </button>
       </header>
@@ -32,12 +34,12 @@ export default function About() {
       <p class="lede">A free, quiet place for yoga, breathwork and meditation. No account, no ads, no tracking. Everything you do stays on your device, and the whole app works offline once it has loaded.</p>
 
       <section class="card pad">
-        <h2 class="display">Practise safely</h2>
-        <p>Yoga is generally safe for healthy people when practised with care, but injuries can happen. Move slowly, stay within a comfortable range, and stop if anything hurts, if you feel dizzy, or if your breathing becomes strained.</p>
+        <h2 class="display">Practice safely</h2>
+        <p>Yoga is generally safe for healthy people when practiced with care, but injuries can happen. Move slowly, stay within a comfortable range, and stop if anything hurts, if you feel dizzy, or if your breathing becomes strained.</p>
         <ul>
           <li>Talk to a health professional before starting if you are pregnant, are older, or have a health condition such as high blood pressure, glaucoma, sciatica, or a joint or spine problem. Many poses can be adapted.</li>
           <li>During pregnancy, avoid hot rooms and long periods lying flat on your back.</li>
-          <li>Breathwork should never strain. Return to normal breathing if you feel light-headed.</li>
+          <li>Breathwork should never strain. Return to normal breathing if you feel lightheaded.</li>
           <li>Meditation can occasionally bring up difficult feelings. It is fine to open your eyes and stop.</li>
         </ul>
         <p class="small muted">Safety guidance adapted from the National Center for Complementary and Integrative Health, "Yoga: What You Need To Know" (public domain). NCCIH does not endorse this app. still. is not medical advice.</p>
