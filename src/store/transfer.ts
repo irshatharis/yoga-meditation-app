@@ -26,19 +26,43 @@ const toBase64 = (bytes: Uint8Array) => {
 }
 const fromBase64 = (s: string) => Uint8Array.from(atob(s), c => c.charCodeAt(0))
 
-export async function toBackup(snap: Snapshot, includeMedia: boolean): Promise<Backup> {
-  return {
-    app: 'still',
-    format: 1,
-    exportedAt: Date.now(),
-    settings: snap.settings,
-    poses: snap.poses,
-    practices: snap.practices,
-    logs: snap.logs,
-    media: includeMedia
-      ? await Promise.all(snap.blobs.map(async b => ({ id: b.id, mime: b.mime, name: b.name, data: toBase64(new Uint8Array(await b.blob.arrayBuffer())) })))
-      : []
+const B64_INDEX = new Int8Array(128).fill(-1)
+for (const [i, c] of [...'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'].entries()) B64_INDEX[c.charCodeAt(0)] = i
+
+// Decodes base64 from ASCII bytes, so a large video never has to become a string.
+function decodeBase64(src: Uint8Array): Uint8Array {
+  let len = src.length
+  while (len > 0 && src[len - 1] === 61) len--
+  if (len % 4 === 1) throw new Error('bad base64')
+  const out = new Uint8Array(Math.floor((len * 3) / 4))
+  let bits = 0
+  let n = 0
+  let o = 0
+  for (let i = 0; i < len; i++) {
+    const c = src[i]!
+    const value = c < 128 ? B64_INDEX[c]! : -1
+    if (value < 0) throw new Error('bad base64')
+    bits = ((bits << 6) | value) & 0xffffff
+    n += 6
+    if (n >= 8) {
+      n -= 8
+      out[o++] = (bits >> n) & 255
+    }
   }
+  return out
+}
+
+// A backup with a few videos is larger than the biggest string a browser can
+// hold, so the file is written in parts and media goes in as separate parts.
+export async function backupBlob(snap: Snapshot, includeMedia: boolean): Promise<Blob> {
+  const backup: Backup = { app: 'still', format: 1, exportedAt: Date.now(), settings: snap.settings, poses: snap.poses, practices: snap.practices, logs: snap.logs, media: [] }
+  const parts: BlobPart[] = [JSON.stringify(backup).slice(0, -2)]
+  for (const [i, b] of (includeMedia ? snap.blobs : []).entries()) {
+    const meta = JSON.stringify({ id: b.id, mime: b.mime, name: b.name }).slice(0, -1)
+    parts.push(new Blob([`${i ? ',' : ''}${meta},"data":"`, toBase64(new Uint8Array(await b.blob.arrayBuffer())), '"}']))
+  }
+  parts.push(']}')
+  return new Blob(parts, { type: 'application/json' })
 }
 
 export function backupFileName(now = new Date()) {
@@ -50,10 +74,42 @@ export type ParsedBackup = { backup: Backup; blobs: StoredBlob[] }
 
 export type ParseError = { ok: false; message: string }
 
-export function parseBackup(json: string): { ok: true; value: ParsedBackup } | ParseError {
+const QUOTE = 34
+const isSpace = (c: number | undefined) => c === 32 || c === 9 || c === 10 || c === 13
+const DATA_KEY = new TextEncoder().encode('"data"')
+
+// Lifts every "data" string out of the file before JSON.parse, leaving "#n" in
+// its place. Base64 never contains a quote, and a quote inside any other JSON
+// string is escaped, so the scan cannot be fooled by user text.
+function liftData(bytes: Uint8Array) {
+  const decoder = new TextDecoder()
+  const text: string[] = []
+  const payloads: Uint8Array[] = []
+  let from = 0
+  for (let i = bytes.indexOf(QUOTE); i !== -1; i = bytes.indexOf(QUOTE, i + 1)) {
+    if (!DATA_KEY.every((b, k) => bytes[i + k] === b)) continue
+    let j = i + DATA_KEY.length
+    while (isSpace(bytes[j])) j++
+    if (bytes[j] !== 58) continue
+    j++
+    while (isSpace(bytes[j])) j++
+    if (bytes[j] !== QUOTE) continue
+    const end = bytes.indexOf(QUOTE, j + 1)
+    if (end === -1) break
+    text.push(decoder.decode(bytes.subarray(from, j + 1)), `#${payloads.length}`)
+    payloads.push(bytes.subarray(j + 1, end))
+    from = end
+    i = end
+  }
+  text.push(decoder.decode(bytes.subarray(from)))
+  return { text: text.join(''), payloads }
+}
+
+export function parseBackup(bytes: Uint8Array): { ok: true; value: ParsedBackup } | ParseError {
+  const { text, payloads } = liftData(bytes)
   let raw: unknown
   try {
-    raw = JSON.parse(json)
+    raw = JSON.parse(text)
   } catch {
     return { ok: false, message: 'This file is not valid JSON.' }
   }
@@ -64,8 +120,16 @@ export function parseBackup(json: string): { ok: true; value: ParsedBackup } | P
     return { ok: false, message: `This does not look like a still. backup${where ? ` (problem at ${where})` : ''}.` }
   }
   const backup = out.output as unknown as Backup
-  const blobs = backup.media.map(m => ({ id: m.id, mime: m.mime, name: m.name, blob: new Blob([fromBase64(m.data)], { type: m.mime }) }))
-  return { ok: true, value: { backup, blobs } }
+  try {
+    const blobs = backup.media.map(m => {
+      const payload = payloads[Number(/^#(\d+)$/.exec(m.data)?.[1] ?? NaN)]
+      if (!payload) throw new Error('missing media')
+      return { id: m.id, mime: m.mime, name: m.name, blob: new Blob([decodeBase64(payload) as Uint8Array<ArrayBuffer>], { type: m.mime }) }
+    })
+    return { ok: true, value: { backup, blobs } }
+  } catch {
+    return { ok: false, message: 'A photo or video in this backup is damaged.' }
+  }
 }
 
 export type Conflict = 'skip' | 'replace' | 'copy'

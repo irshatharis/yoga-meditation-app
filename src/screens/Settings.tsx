@@ -4,7 +4,7 @@ import { useApp } from '../state/app'
 import { listVoices, onVoicesChanged, pickVoice, speak } from '../engine/speech'
 import { bell, setAmbient, unlockAudio } from '../engine/audio'
 import * as db from '../store/db'
-import { backupFileName, parseBackup, planMerge, resolveMerge, toBackup, type Conflict, type MergePlan, type ParsedBackup } from '../store/transfer'
+import { backupBlob, backupFileName, parseBackup, planMerge, resolveMerge, type Conflict, type MergePlan, type ParsedBackup } from '../store/transfer'
 import { parseSettings } from '../store/schema'
 import { canPromptInstall, isIOS, isStandalone, onInstallAvailable, promptInstall } from '../pwa'
 import { Icon } from '../ui/icons'
@@ -85,15 +85,18 @@ export default function SettingsScreen() {
 
   const exportAll = async () => {
     const blobs: db.StoredBlob[] = includeMedia() ? await db.getAll<db.StoredBlob>('blobs') : []
-    const backup = await toBackup({ settings: structuredClone(snapshot(s)), poses: app.userPoses(), practices: app.userPractices(), logs: app.logs(), blobs }, includeMedia())
-    download(backupFileName(), new Blob([JSON.stringify(backup)], { type: 'application/json' }))
-    toast('Backup saved to your downloads.')
+    try {
+      download(backupFileName(), await backupBlob({ settings: snapshot(s), poses: app.userPoses(), practices: app.userPractices(), logs: app.logs(), blobs }, includeMedia()))
+      toast('Backup saved to your downloads.')
+    } catch {
+      toast('The backup could not be made. Try again without photos and videos.')
+    }
   }
 
   const importFile = async () => {
     const file = await pickFile('application/json,.json')
     if (!file) return
-    const parsed = parseBackup(await file.text())
+    const parsed = parseBackup(new Uint8Array(await file.arrayBuffer()))
     if (!parsed.ok) {
       toast(parsed.message)
       return
