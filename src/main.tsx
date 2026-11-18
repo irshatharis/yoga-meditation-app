@@ -1,6 +1,6 @@
-import { render } from '@solidjs/web'
+import { Portal, render } from '@solidjs/web'
 import { createRouter, useLocation } from '@solidjs/router'
-import { Show, createEffect } from 'solid-js'
+import { Show, createMemo } from 'solid-js'
 import type { JSX } from '@solidjs/web'
 import './ui/styles.css'
 import { AppProvider, loadAll, useApp } from './state/app'
@@ -46,53 +46,29 @@ const Router = createRouter({
   ]
 })
 
-function Appearance() {
-  const app = useApp()
-  createEffect(
-    () => [app.settings.theme, app.settings.motion] as const,
-    ([theme, motion]) => {
-      const root = document.documentElement
-      if (theme === 'system') delete root.dataset.theme
-      else root.dataset.theme = theme
-      if (motion === 'reduce') root.dataset.motion = 'reduce'
-      else delete root.dataset.motion
-      const dark = theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
-      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#15130f' : '#f5efe5')
-    }
-  )
-  return null
-}
-
-function setHead(selector: string, attr: string, value: string) {
-  document.head.querySelector(selector)?.setAttribute(attr, value)
-}
-
+// The address decides the title, description, canonical link and whether
+// search engines may index the page. The tags are rendered like any other view.
 function Head() {
   const app = useApp()
   const location = useLocation()
-  createEffect(
-    () => ({
-      path: location.pathname,
-      meta: pageMeta(location.pathname, {
-        practice: app.practice,
-        pose: app.pose,
-        path: id => app.paths.find(p => p.id === id),
-        minutes: p => Math.max(1, Math.round(estimateSec(p, app.poses(), app.settings) / 60))
-      })
-    }),
-    ({ path, meta }) => {
-      document.title = meta.title
-      setHead('meta[name="description"]', 'content', meta.description)
-      setHead('link[rel="canonical"]', 'href', SITE_URL + path)
-      let robots = document.head.querySelector<HTMLMetaElement>('meta[name="robots"]')
-      if (meta.index) robots?.remove()
-      else {
-        robots ??= document.head.appendChild(Object.assign(document.createElement('meta'), { name: 'robots' }))
-        robots.content = 'noindex'
-      }
-    }
+  const meta = createMemo(() =>
+    pageMeta(location.pathname, {
+      practice: app.practice,
+      pose: app.pose,
+      path: id => app.paths.find(p => p.id === id),
+      minutes: p => Math.max(1, Math.round(estimateSec(p, app.poses(), app.settings) / 60))
+    })
   )
-  return null
+  return (
+    <Portal mount={document.head}>
+      <title>{meta().title}</title>
+      <meta name="description" content={meta().description} />
+      <link rel="canonical" href={SITE_URL + location.pathname} />
+      <Show when={!meta().index}>
+        <meta name="robots" content="noindex" />
+      </Show>
+    </Portal>
+  )
 }
 
 function TabBar() {
@@ -122,7 +98,6 @@ function Shell(props: { children: JSX.Element }) {
   const location = useLocation()
   return (
     <>
-      <Appearance />
       <Head />
       <div class="shell">{props.children}</div>
       <Show when={!location.pathname.startsWith('/play')}>
@@ -137,6 +112,8 @@ async function boot() {
   const initial = await loadAll()
   const root = document.getElementById('root')!
   root.textContent = ''
+  // The prerendered tags serve visitors without JavaScript. From here on Head renders them.
+  for (const el of document.head.querySelectorAll('title, meta[name="description"], link[rel="canonical"], meta[name="robots"]')) el.remove()
   render(
     () => (
       <AppProvider initial={initial}>

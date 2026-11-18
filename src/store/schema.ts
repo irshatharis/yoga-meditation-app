@@ -1,4 +1,5 @@
 import * as v from 'valibot'
+import { snapshot } from 'solid-js'
 import { FAMILIES, FOCUSES, DEFAULT_SETTINGS, type BlobId, type PathId, type PoseId, type PracticeId, type Settings } from '../domain/types'
 
 // Everything that enters from a file, a share link, or storage written by an
@@ -121,6 +122,10 @@ export const LogSchema = v.object({
   note: v.optional(text(4000))
 })
 
+export const SETTINGS_REVISION = 2
+
+export const settingsRecord = (settings: Settings) => ({ ...snapshot(settings), revision: SETTINGS_REVISION })
+
 // Settings merge over defaults field by field, so a file from an older
 // version (or a hand-edited one) never leaves a setting undefined.
 export function parseSettings(raw: unknown): Settings {
@@ -145,7 +150,8 @@ export function parseSettings(raw: unknown): Settings {
       enabled: pick(voice.enabled, v.boolean(), d.voice.enabled),
       voiceURI: pick(voice.voiceURI, v.nullable(v.string()), d.voice.voiceURI),
       rate: pick(voice.rate, v.pipe(v.number(), v.minValue(0.5), v.maxValue(1.5)), d.voice.rate),
-      detail: pick(voice.detail, v.picklist(['full', 'names', 'quiet']), d.voice.detail)
+      // Full guidance was the default before revision 2, so a stored 'full' may never have been chosen.
+      detail: r.revision === SETTINGS_REVISION || voice.detail !== 'full' ? pick(voice.detail, v.picklist(['full', 'names', 'quiet']), d.voice.detail) : d.voice.detail
     },
     sound: {
       bell: pick(sound.bell, v.picklist(['bowl', 'strike', 'gong', 'chime', 'soft']), d.sound.bell),

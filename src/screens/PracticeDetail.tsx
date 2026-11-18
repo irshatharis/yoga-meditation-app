@@ -4,7 +4,7 @@ import { useApp } from '../state/app'
 import { authoredSec, compile, type Segment } from '../domain/timeline'
 import { Figure } from '../figure/Figure'
 import { primeForPractice } from '../engine/session'
-import { encodeShare } from '../store/transfer'
+import { encodeShare, newId } from '../store/transfer'
 import { Icon } from '../ui/icons'
 import { KIND_LABEL, PracticeArt, Segmented, Sheet, clock, minutes, toast, pressed, useBack } from '../ui/kit'
 import type { Pose, Practice } from '../domain/types'
@@ -98,7 +98,8 @@ function Detail(props: { practice: Practice }) {
       q.set('path', String(search.path))
       q.set('day', String(search.day ?? 1))
     }
-    navigate(`/play/${props.practice.id}${q.size ? `?${q}` : ''}`)
+    q.set('session', newId('run'))
+    navigate(`/play/${props.practice.id}?${q}`)
   }
 
   const share = async () => {

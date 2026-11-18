@@ -1,4 +1,4 @@
-import { createMemo, createSignal, For, onSettled, Show, untrack } from 'solid-js'
+import { createMemo, createSignal, For, onCleanup, Show, untrack } from 'solid-js'
 import { useNavigate, useParams } from '@solidjs/router'
 import { useApp } from '../state/app'
 import { Figure } from '../figure/Figure'
@@ -34,7 +34,7 @@ function useMorph(target: () => FigurePose) {
     }
     raf = requestAnimationFrame(step)
   }
-  onSettled(() => () => cancelAnimationFrame(raf))
+  onCleanup(() => cancelAnimationFrame(raf))
   return { shown, go }
 }
 

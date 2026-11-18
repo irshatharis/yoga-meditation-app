@@ -70,6 +70,26 @@ Three parallel reviews (player, data, browsing) drove every flow on phone viewpo
 
 **Feedback and source.** About, Settings and the home footer link to an email for feedback and to the MIT-licensed source on GitHub.
 
+## Reliability rebuild (2026-11-18)
+
+The person reported doubled speech, two accents, practices pausing on their own, a Next button that seemed not to work, and actions that were unreliable in general.
+
+**No effects.** Behaviour runs from taps, from timers the code starts on purpose, from `ref` callbacks and from `onCleanup`. Nothing runs because some state changed. Settings are saved, broadcast and applied to the page in `updateSettings`, the one place they change. The head tags are rendered through a `Portal` like any other view. `tests/structure.test.ts` fails if an effect comes back.
+
+**Writes are flushed before they are read.** The client build of Solid 2 applies store writes at the end of the tick. Code that saves or applies state it just wrote calls `flush()` first. The player keeps its state in a plain variable and copies it to a signal for the screen.
+
+**One speech queue, one voice.** The speaker in `src/engine/speech.ts` says one sentence at a time. It waits for an interrupted line to report its end before starting the next, because calling `speak()` straight after `cancel()` is when phones repeated or dropped lines. It picks one on-device voice when the practice starts and keeps it. A network voice that stalls makes the browser fall back to a different voice. Lines belong to a step, so moving on cuts off the last step's leftovers instead of letting them run on.
+
+**Pose names by default.** Full spoken instructions overran the get-ready gaps and were cut off by the bell. Settings saved before revision 2 that still hold the old `full` default move to `names`. Full guidance stays available in Settings.
+
+**Next moves by step.** A step is a pose or one side with its get-ready gap, a whole flow, a sit, a breath practice or a rest. The step counter, Up next, Next and Previous all use `steps()` from `src/domain/player.ts`. Before, Next from a get-ready gap landed on the same pose, and a flow took one tap per breath.
+
+**Only the app's buttons pause a practice.** The lock-screen media session shows the current step but registers no play or pause handlers. The page cannot tell a person's tap there from one the system sends. The cause of the reported pauses was not reproduced on a desktop browser, so this is a guess.
+
+**Each run has an id in its address.** Begin creates `?session=<id>`, so a reload resumes that run. The player no longer rewrites the address while it starts.
+
+**Taps stay taps.** `touch-action: manipulation` on the page stops two quick taps from zooming instead. Previous and Next are 64px.
+
 ## Open
 
 - Background audio and wake-lock behaviour on a real iPhone has not been tested. The e2e suite covers Chromium with stubbed APIs.

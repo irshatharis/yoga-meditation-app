@@ -126,6 +126,8 @@ body {
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: none;
+  /* Two quick taps are two taps, not a zoom. */
+  touch-action: manipulation;
 }
 
 button,
@@ -420,9 +422,19 @@ h3.display {
   gap: 8px;
   overflow-x: auto;
   scrollbar-width: none;
-  margin-inline: -18px;
-  padding-inline: 18px;
+  /* Room above and below for each chip's larger tap area, which the scroller would clip. */
+  margin: -4px -18px;
+  padding: 4px 18px;
   scroll-padding-inline: 18px;
+}
+.stack > * + .chips {
+  margin-top: 8px;
+}
+.chips.wrap {
+  flex-wrap: wrap;
+  overflow: visible;
+  margin: 0;
+  padding: 0;
 }
 .chips::-webkit-scrollbar {
   display: none;
@@ -812,7 +824,8 @@ textarea.input {
   flex: none;
 }
 .segmented button {
-  height: 34px;
+  height: 38px;
+  min-width: 44px;
   padding: 0 12px;
   border-radius: 999px;
   font-size: 0.82rem;
@@ -828,7 +841,31 @@ textarea.input {
 
 input[type='range'] {
   width: min(140px, 40vw);
+  height: 44px;
   accent-color: var(--accent);
+}
+
+/* A fingertip covers about 44 by 44 pixels. These controls are drawn smaller,
+   so an invisible margin around each one takes the taps that land near it. */
+.chip,
+.segmented button,
+.switch,
+.stepper button,
+.btn.small,
+.pill,
+.media-remove {
+  position: relative;
+}
+.chip::before,
+.segmented button::before,
+.switch::before,
+.stepper button::before,
+.btn.small::before,
+.pill::before,
+.media-remove::before {
+  content: '';
+  position: absolute;
+  inset: min(0px, (100% - 44px) / 2);
 }
 
 /* Sheets and toasts */
@@ -1280,8 +1317,8 @@ input[type='range'] {
 }
 .media-remove {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  top: 8px;
+  right: 8px;
   width: 28px;
   height: 28px;
   border-radius: 50%;
