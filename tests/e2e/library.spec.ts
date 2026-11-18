@@ -74,6 +74,20 @@ test('a sheet keeps keyboard focus inside and hands it back when it closes', asy
   await expect(opener).toBeFocused()
 })
 
+test('a photo that does not fit in storage says so instead of vanishing', async ({ page }) => {
+  await page.addInitScript(() => {
+    const put = IDBObjectStore.prototype.put
+    IDBObjectStore.prototype.put = function (this: IDBObjectStore, ...args: Parameters<IDBObjectStore['put']>) {
+      if (this.name === 'blobs') throw new DOMException('The quota has been exceeded.', 'QuotaExceededError')
+      return put.apply(this, args)
+    }
+  })
+  await page.goto('/poses/tree')
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Add photo or video' }).click()])
+  await chooser.setFiles({ name: 'tree.png', mimeType: 'image/png', buffer: Buffer.from('89504e470d0a1a0a', 'hex') })
+  await expect(page.locator('.toast')).toContainText('not enough space')
+})
+
 test('cancelling a copy of a built-in practice leaves nothing behind', async ({ page }) => {
   await page.goto('/practices')
   await page.goto('/practices/desk-break')
