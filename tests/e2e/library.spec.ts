@@ -60,6 +60,20 @@ test('a very long practice name never makes the page scroll sideways', async ({ 
   expect(await sideways()).toBe(0)
 })
 
+test('a sheet keeps keyboard focus inside and hands it back when it closes', async ({ page }) => {
+  await page.goto('/practices/new')
+  const opener = page.getByRole('button', { name: 'Pose', exact: true })
+  await opener.focus()
+  await page.keyboard.press('Enter')
+  const sheet = page.getByRole('dialog', { name: 'Add a pose' })
+  await expect(sheet.getByRole('button', { name: 'Done' })).toBeFocused()
+  await page.keyboard.press('Shift+Tab')
+  expect(await page.evaluate(() => !!document.activeElement?.closest('[role=dialog]'))).toBe(true)
+  await page.keyboard.press('Escape')
+  await expect(sheet).toHaveCount(0)
+  await expect(opener).toBeFocused()
+})
+
 test('cancelling a copy of a built-in practice leaves nothing behind', async ({ page }) => {
   await page.goto('/practices')
   await page.goto('/practices/desk-break')
