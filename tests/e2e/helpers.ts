@@ -68,10 +68,11 @@ export async function spySpeech(page: Page) {
   await page.addInitScript(() => {
     const w = window as unknown as { __said: string[] }
     w.__said = []
-    const speak = speechSynthesis.speak.bind(speechSynthesis)
-    speechSynthesis.speak = (u: SpeechSynthesisUtterance) => {
+    // Patched on the prototype because WebKit ignores an own property on speechSynthesis.
+    const speak = SpeechSynthesis.prototype.speak
+    SpeechSynthesis.prototype.speak = function (this: SpeechSynthesis, u: SpeechSynthesisUtterance) {
       if (u.text.trim()) w.__said.push(u.text)
-      speak(u)
+      speak.call(this, u)
     }
   })
 }
