@@ -135,20 +135,34 @@ export function parseBackup(bytes: Uint8Array): { ok: true; value: ParsedBackup 
 export type Conflict = 'skip' | 'replace' | 'copy'
 
 export type MergePlan = {
-  poses: { add: Pose[]; clash: Pose[] }
-  practices: { add: Practice[]; clash: Practice[] }
+  poses: { add: Pose[]; clash: Pose[]; same: number }
+  practices: { add: Practice[]; clash: Practice[]; same: number }
   logs: { add: SessionLog[]; duplicate: number }
 }
 
+// Missing and undefined fields count as equal, as they do after a JSON round trip.
+const same = (a: unknown, b: unknown): boolean => {
+  if (a === b) return true
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null || Array.isArray(a) !== Array.isArray(b)) return false
+  const x = a as Record<string, unknown>
+  const y = b as Record<string, unknown>
+  return [...new Set([...Object.keys(x), ...Object.keys(y)])].every(k => same(x[k], y[k]))
+}
+
+// Records already on this device unchanged are neither added nor conflicts.
+function split<T extends { id: string; origin: string }>(current: readonly T[], incoming: readonly T[]) {
+  const byId = new Map(current.map(r => [r.id, r]))
+  const user = incoming.filter(r => r.origin !== 'builtin')
+  const known = user.filter(r => byId.has(r.id))
+  const clash = known.filter(r => !same(byId.get(r.id), r))
+  return { add: user.filter(r => !byId.has(r.id)), clash, same: known.length - clash.length }
+}
+
 export function planMerge(current: Pick<Snapshot, 'poses' | 'practices' | 'logs'>, incoming: Backup): MergePlan {
-  const poseIds = new Set(current.poses.map(p => p.id))
-  const practiceIds = new Set(current.practices.map(p => p.id))
   const logIds = new Set(current.logs.map(l => l.id))
-  const userPoses = incoming.poses.filter(p => p.origin !== 'builtin')
-  const userPractices = incoming.practices.filter(p => p.origin !== 'builtin')
   return {
-    poses: { add: userPoses.filter(p => !poseIds.has(p.id)), clash: userPoses.filter(p => poseIds.has(p.id)) },
-    practices: { add: userPractices.filter(p => !practiceIds.has(p.id)), clash: userPractices.filter(p => practiceIds.has(p.id)) },
+    poses: split(current.poses, incoming.poses),
+    practices: split(current.practices, incoming.practices),
     logs: { add: incoming.logs.filter(l => !logIds.has(l.id)), duplicate: incoming.logs.filter(l => logIds.has(l.id)).length }
   }
 }

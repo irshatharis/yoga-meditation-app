@@ -113,6 +113,8 @@ export default function SettingsScreen() {
     toast(`Imported ${plural(records.practices.length, 'practice')}, ${plural(records.poses.length, 'pose')} and ${plural(records.logs.length, 'session')}.`)
   }
 
+  const alreadyHave = (x: { clash: unknown[]; same: number }) => `${x.same + x.clash.length} you already have${x.clash.length ? ` (${x.clash.length} changed)` : ''}`
+
   return (
     <main class="page">
       <header class="topbar">
@@ -339,8 +341,8 @@ export default function SettingsScreen() {
                 From {new Date(p().parsed.backup.exportedAt).toLocaleDateString(undefined, { dateStyle: 'long' })}.
               </p>
               <ul class="small" style={{ margin: 0, 'padding-left': '1.2em' }}>
-                <li>{plural(p().plan.practices.add.length, 'new practice')}, {p().plan.practices.clash.length} you already have</li>
-                <li>{plural(p().plan.poses.add.length, 'new pose')}, {p().plan.poses.clash.length} you already have</li>
+                <li>{plural(p().plan.practices.add.length, 'new practice')}, {alreadyHave(p().plan.practices)}</li>
+                <li>{plural(p().plan.poses.add.length, 'new pose')}, {alreadyHave(p().plan.poses)}</li>
                 <li>
                   {plural(p().plan.logs.add.length, 'journal session')}{p().plan.logs.duplicate ? `, ${p().plan.logs.duplicate} already in your journal` : ''}
                 </li>
