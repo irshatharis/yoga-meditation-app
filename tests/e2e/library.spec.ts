@@ -85,7 +85,7 @@ test('a photo that does not fit in storage says so instead of vanishing', async 
   await page.goto('/poses/tree')
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Add photo or video' }).click()])
   await chooser.setFiles({ name: 'tree.png', mimeType: 'image/png', buffer: Buffer.from('89504e470d0a1a0a', 'hex') })
-  await expect(page.locator('.toast')).toContainText('not enough space')
+  await expect(page.locator('.toast')).toContainText('could not store that file')
 })
 
 test('cancelling a copy of a built-in practice leaves nothing behind', async ({ page }) => {

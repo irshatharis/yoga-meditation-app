@@ -16,7 +16,12 @@ export async function addMediaFromFile(): Promise<MediaRef | null> {
   }
   const kind = file.type.startsWith('video/') ? 'video' : 'image'
   const id = newId('media') as BlobId
-  await put('blobs', { id, blob: file, mime: file.type, name: file.name })
+  try {
+    await put('blobs', { id, blob: file, mime: file.type, name: file.name })
+  } catch {
+    toast('This device could not store that file. Try a smaller one.')
+    return null
+  }
   return { kind, blob: id, mime: file.type }
 }
 
