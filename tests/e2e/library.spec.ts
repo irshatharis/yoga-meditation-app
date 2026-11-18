@@ -88,6 +88,20 @@ test('a photo that does not fit in storage says so instead of vanishing', async 
   await expect(page.locator('.toast')).toContainText('could not store that file')
 })
 
+test('dismissing the share sheet does not copy the link anyway', async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as unknown as { __copied: string[] }
+    w.__copied = []
+    Object.defineProperty(navigator, 'share', { configurable: true, value: async () => Promise.reject(new DOMException('Share canceled', 'AbortError')) })
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (t: string) => void w.__copied.push(t) } })
+  })
+  await page.goto('/practices/desk-break')
+  await page.getByRole('button', { name: 'Share' }).click()
+  await page.waitForTimeout(300)
+  expect(await page.evaluate(() => (window as unknown as { __copied: string[] }).__copied)).toEqual([])
+  await expect(page.locator('.toast')).toHaveCount(0)
+})
+
 test('cancelling a copy of a built-in practice leaves nothing behind', async ({ page }) => {
   await page.goto('/practices')
   await page.goto('/practices/desk-break')
