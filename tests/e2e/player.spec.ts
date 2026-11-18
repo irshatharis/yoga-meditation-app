@@ -154,3 +154,17 @@ test('closing the sound sheet with Escape does not offer to end the practice', a
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible()
 })
+
+test('a practice ended in its first minute is not offered to resume', async ({ page }) => {
+  await page.goto('/practices/morning-flow')
+  await page.getByRole('button', { name: /^Begin/ }).click()
+  await page.getByRole('button', { name: 'Next', exact: true }).click()
+  await page.getByRole('button', { name: 'End practice' }).click()
+  await page.getByRole('button', { name: 'End practice' }).last().click()
+  await expect(page).toHaveURL(/\/practices\/morning-flow$/)
+  for (const open of [() => page.getByRole('link', { name: 'Today' }).click(), () => page.reload()]) {
+    await open()
+    await expect(page.getByText('Suggested now')).toBeVisible()
+    await expect(page.getByText('Resume Morning flow')).toHaveCount(0)
+  }
+})
