@@ -121,11 +121,16 @@ test('a reload mid-practice picks up where it was', async ({ page }) => {
   await page.getByRole('button', { name: /^Begin/ }).click()
   await page.clock.runFor(30_000)
   await page.getByRole('button', { name: 'Next' }).click()
+  await page.reload()
+  await expect(page.getByRole('button', { name: /^Resume/ })).toBeVisible()
+  await expect(page.locator('.player-name')).toHaveText('Cat and cow')
+
+  await page.getByRole('button', { name: /^Resume/ }).click()
+  await page.clock.runFor(5_000)
   await page.getByRole('button', { name: 'Pause' }).click()
   const left = await secondsLeft(page)
   await page.reload()
   await expect(page.getByRole('button', { name: /^Resume/ })).toBeVisible()
-  await expect(page.locator('.player-name')).toHaveText('Cat and cow')
   expect(await secondsLeft(page)).toBe(left)
 })
 
