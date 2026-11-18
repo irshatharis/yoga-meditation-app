@@ -47,7 +47,7 @@ export default function Poses() {
       <div class="stack">
         <label class="search">
           <Icon name="search" size={18} />
-          <input class="input" type="search" placeholder="Search by name, Sanskrit, or body area" value={query()} onInput={e => setQuery(e.currentTarget.value)} aria-label="Search poses" />
+          <input class="input" type="search" placeholder="Name, Sanskrit or body area" value={query()} onInput={e => setQuery(e.currentTarget.value)} aria-label="Search poses" />
         </label>
         <div class="chips" role="group" aria-label="Pose family">
           <button class="chip" aria-pressed={pressed(family() === 'all')} onClick={() => setFamily('all')}>
