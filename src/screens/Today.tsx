@@ -8,6 +8,7 @@ import { estimateSec } from '../domain/timeline'
 import { locate } from '../domain/player'
 import { primeForPractice } from '../engine/session'
 import type { Practice } from '../domain/types'
+import { SOURCE_URL } from '../seo'
 
 const greeting = (h: number) => (h < 5 ? 'Still up' : h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : h < 22 ? 'Good evening' : 'Late night')
 
@@ -207,7 +208,9 @@ export default function Today() {
       </Show>
 
       <footer class="muted small" style={{ 'text-align': 'center', padding: '12px 0' }}>
-        <a href="/about">About still.</a> · Free, private, works offline
+        <a href="/about">About still.</a> · <a href="/about#feedback">Feedback</a> · <a href={SOURCE_URL} target="_blank" rel="noopener noreferrer">Open source</a>
+        <br />
+        Free, private, works offline
       </footer>
     </main>
   )

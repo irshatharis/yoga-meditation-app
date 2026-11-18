@@ -2,6 +2,7 @@ import { Figure } from '../figure/Figure'
 import { useApp } from '../state/app'
 import { Icon } from '../ui/icons'
 import { useBack } from '../ui/kit'
+import { FEEDBACK_EMAIL, feedbackHref, SOURCE_URL } from '../seo'
 
 const SOUNDS = [
   ['Singing bowl', 'zambolino', 'https://freesound.org/people/zambolino/sounds/439235/'],
@@ -32,6 +33,25 @@ export default function About() {
         still<span style={{ color: 'var(--accent)' }}>.</span>
       </h1>
       <p class="lede">A free, quiet place for yoga, breathwork and meditation. No account, no ads, no tracking. Everything you do stays on your device, and the whole app works offline once it has loaded.</p>
+
+      <section class="card pad" id="feedback">
+        <h2 class="display">Say hello</h2>
+        <p>still. is made by one person. Ideas, bugs, a pose you miss or a note that it helped. Every message is read.</p>
+        <a class="btn primary block" href={feedbackHref()}>
+          <Icon name="mail" size={18} /> Email feedback
+        </a>
+        <p class="small muted" style={{ 'text-align': 'center' }}>
+          Or write to <a class="link" href={`mailto:${FEEDBACK_EMAIL}`}>{FEEDBACK_EMAIL}</a>
+        </p>
+      </section>
+
+      <section class="card pad" id="open-source">
+        <h2 class="display">Open source</h2>
+        <p>Every line of still. is public and free to reuse under the MIT License. Read the code, report a bug or suggest a change on GitHub.</p>
+        <a class="btn block" href={SOURCE_URL} target="_blank" rel="noopener noreferrer">
+          <Icon name="code" size={18} /> View the code on GitHub
+        </a>
+      </section>
 
       <section class="card pad">
         <h2 class="display">Practice safely</h2>
@@ -66,13 +86,9 @@ export default function About() {
         </ul>
         <p>Typefaces are Fraunces and Inter, under the SIL Open Font License. Icons are drawn in the style of Lucide (ISC).</p>
         <p>
-          The written content of still. is shared under{' '}
-          <a class="link" href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">
-            CC BY 4.0
-          </a>
-          . The source code is on{' '}
-          <a class="link" href="https://github.com/irshatharis/yoga-meditation-app" target="_blank" rel="noopener noreferrer">
-            GitHub
+          The code, practices and writing in still. are released under the{' '}
+          <a class="link" href={`${SOURCE_URL}/blob/main/LICENSE`} target="_blank" rel="noopener noreferrer">
+            MIT License
           </a>
           .
         </p>

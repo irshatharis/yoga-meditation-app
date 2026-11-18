@@ -2,6 +2,13 @@ import type { Path, Pose, Practice } from './domain/types'
 
 export const SITE_URL = 'https://still.irshath.com'
 export const SITE_NAME = 'still.'
+export const SOURCE_URL = 'https://github.com/irshatharis/yoga-meditation-app'
+export const FEEDBACK_EMAIL = 'irshatharis@gmail.com'
+
+// The version and device go in the body so a bug report says where it happened.
+// The person sees them in their mail app before sending.
+export const feedbackHref = () =>
+  `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent('still. feedback')}&body=${encodeURIComponent(`\n\n\nstill. ${__APP_VERSION__}, ${navigator.userAgent}`)}`
 export const SITE_TITLE = 'still. Free yoga, breathwork and meditation app'
 export const SITE_DESCRIPTION =
   'Guided yoga, breathwork and meditation that works offline. Free, private and ad free, with no account. Clear pose figures, gentle pacing, your own practices and a journal.'

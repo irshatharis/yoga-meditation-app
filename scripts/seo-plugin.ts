@@ -5,7 +5,7 @@ import { POSES } from '../src/content/poses'
 import { PRACTICES } from '../src/content/practices'
 import { estimateSec } from '../src/domain/timeline'
 import { DEFAULT_SETTINGS, type Practice, type PracticeItem } from '../src/domain/types'
-import { pageMeta, SITE_URL, type Lookup, type PageMeta } from '../src/seo'
+import { FEEDBACK_EMAIL, pageMeta, SITE_URL, SOURCE_URL, type Lookup, type PageMeta } from '../src/seo'
 
 // Crawlers and link previews do not run JavaScript, so every public route gets
 // its own HTML file with the right title, description, share card and a plain
@@ -62,7 +62,8 @@ function pages(): Page[] {
     {
       path: '/about',
       heading: 'About still.',
-      body: para('still. is a free app for yoga, breathwork and meditation. There is no account, no ads and no tracking. Your practices, journal and settings live only on your device, and you can export them at any time. The whole app works offline once it has loaded, and you can add it to your home screen.')
+      body: para('still. is a free app for yoga, breathwork and meditation. There is no account, no ads and no tracking. Your practices, journal and settings live only on your device, and you can export them at any time. The whole app works offline once it has loaded, and you can add it to your home screen.') +
+        `<p>still. is open source under the MIT License. ${link(SOURCE_URL, 'Read the code on GitHub')}. Feedback is welcome at ${link(`mailto:${FEEDBACK_EMAIL}`, FEEDBACK_EMAIL)}.</p>`
     }
   ]
   const practices = PRACTICES.map(p => ({ path: `/practices/${p.id}`, heading: p.title, body: practiceBody(p) }))
