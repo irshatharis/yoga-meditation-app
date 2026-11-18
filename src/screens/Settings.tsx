@@ -9,6 +9,7 @@ import { backupBlob, backupFileName, parseBackup, planMerge, resolveMerge, type 
 import { parseSettings } from '../store/schema'
 import { canPromptInstall, isIOS, isStandalone, onInstallAvailable, promptInstall } from '../pwa'
 import { Icon } from '../ui/icons'
+import { feedbackHref, SOURCE_URL } from '../seo'
 import { Segmented, Sheet, Stepper, Switch, download, pickFile, plural, toast } from '../ui/kit'
 import type { Ambient, BellSound, Settings } from '../domain/types'
 
@@ -334,11 +335,23 @@ export default function SettingsScreen() {
         </Row>
       </Group>
 
-      <a class="card pad row" href="/about">
-        <Icon name="info" />
-        <span class="grow">About still., credits and safety</span>
-        <Icon name="chevron" />
-      </a>
+      <Group title="More">
+        <a class="list-row" href={feedbackHref()}>
+          <Icon name="mail" />
+          <span class="grow">Send feedback</span>
+          <Icon name="chevron" />
+        </a>
+        <a class="list-row" href={SOURCE_URL} target="_blank" rel="noopener noreferrer">
+          <Icon name="code" />
+          <span class="grow">Open source on GitHub</span>
+          <Icon name="chevron" />
+        </a>
+        <a class="list-row" href="/about">
+          <Icon name="info" />
+          <span class="grow">About, credits and safety</span>
+          <Icon name="chevron" />
+        </a>
+      </Group>
 
       <Sheet open={!!pending()} onClose={() => setPending(null)} title="Import">
         <Show when={pending()}>
