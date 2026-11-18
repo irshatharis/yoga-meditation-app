@@ -122,6 +122,38 @@ test('search and filters are still there after looking at a result', async ({ pa
   await expect(page.getByRole('button', { name: 'Balance' })).toHaveAttribute('aria-pressed', 'true')
 })
 
+test('removing a photo or a pose frees the stored file', async ({ page }) => {
+  const stored = () =>
+    page.evaluate(
+      () =>
+        new Promise<number>(resolve => {
+          const req = indexedDB.open('still')
+          req.onsuccess = () => {
+            const count = req.result.transaction('blobs').objectStore('blobs').count()
+            count.onsuccess = () => resolve(count.result)
+          }
+        })
+    )
+  const addPhoto = async () => {
+    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Add photo or video' }).click()])
+    await chooser.setFiles({ name: 'me.png', mimeType: 'image/png', buffer: Buffer.from('89504e470d0a1a0a', 'hex') })
+    await expect(page.locator('.media-item')).toHaveCount(1)
+  }
+
+  await page.goto('/poses/tree')
+  await addPhoto()
+  expect(await stored()).toBe(1)
+  await page.locator('.media-item').getByRole('button', { name: 'Remove' }).click()
+  await expect(page.locator('.media-item')).toHaveCount(0)
+  await expect.poll(stored).toBe(0)
+
+  await addPhoto()
+  await page.getByRole('button', { name: 'Remove my changes' }).click()
+  await page.getByRole('button', { name: 'Confirm' }).click()
+  await expect(page).toHaveURL(/\/poses$/)
+  await expect.poll(stored).toBe(0)
+})
+
 test('cancelling a copy of a built-in practice leaves nothing behind', async ({ page }) => {
   await page.goto('/practices')
   await page.goto('/practices/desk-break')
