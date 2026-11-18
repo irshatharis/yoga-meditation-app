@@ -32,7 +32,7 @@ export const FigureSchema = v.looseObject({
 
 const Media = v.variant('kind', [
   v.object({ kind: v.picklist(['image', 'video']), blob: id<BlobId>(), mime: text(80), credit: v.optional(text(200)) }),
-  v.object({ kind: v.literal('link'), href: v.pipe(v.string(), v.url(), v.maxLength(2000)), label: v.optional(text(120)) })
+  v.object({ kind: v.literal('link'), href: v.pipe(v.string(), v.url(), v.regex(/^https?:/i), v.maxLength(2000)), label: v.optional(text(120)) })
 ])
 
 export const PoseSchema = v.object({
