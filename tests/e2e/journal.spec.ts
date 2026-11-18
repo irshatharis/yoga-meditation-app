@@ -10,4 +10,5 @@ test('the journal moves to the new day when the app is reopened after midnight',
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')))
   await expect(page.getByRole('button', { name: /^11\/19\/2026/ })).toBeEnabled()
   await expect(page.getByRole('button', { name: /^11\/19\/2026/ })).toHaveAttribute('aria-current', 'date')
+  await expect(page.getByRole('heading', { name: 'Thursday, November 19' })).toBeVisible()
 })

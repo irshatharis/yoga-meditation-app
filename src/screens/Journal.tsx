@@ -1,4 +1,4 @@
-import { createMemo, createSignal, For, Show, untrack } from 'solid-js'
+import { createMemo, createSignal, For, onSettled, Show, untrack } from 'solid-js'
 import { useApp } from '../state/app'
 import { addDays, byDay, dayKey, parseDay, streaks, totals, type DayKey } from '../domain/stats'
 import { Icon } from '../ui/icons'
@@ -9,17 +9,27 @@ const FEELING = ['', 'Heavy', 'Restless', 'Steady', 'Calm', 'Bright']
 
 export default function Journal() {
   const app = useApp()
-  const today = dayKey(Date.now())
-  const [selected, setSelected] = createSignal<DayKey>(today)
+  // An installed app resumes without reloading, so today is checked again on return.
+  const [today, setToday] = createSignal(dayKey(Date.now()))
+  const [selected, setSelected] = createSignal<DayKey>(untrack(today))
+  onSettled(() => {
+    const check = () => {
+      const next = dayKey(Date.now())
+      if (selected() === today()) setSelected(next)
+      setToday(next)
+    }
+    document.addEventListener('visibilitychange', check)
+    return () => document.removeEventListener('visibilitychange', check)
+  })
   const [monthsShown, setMonthsShown] = createSignal(3)
   const [editing, setEditing] = createSignal<SessionLog | null>(null)
   const days = createMemo(() => byDay(app.logs()))
-  const s = createMemo(() => streaks(app.logs(), today))
+  const s = createMemo(() => streaks(app.logs(), today()))
   const t = createMemo(() => totals(app.logs()))
 
   const months = createMemo(() => {
     const out: { label: string; cells: (DayKey | null)[] }[] = []
-    const now = parseDay(today)
+    const now = parseDay(today())
     for (let m = 0; m < monthsShown(); m++) {
       const first = new Date(now.getFullYear(), now.getMonth() - m, 1)
       const lead = (first.getDay() - app.settings.weekStart + 7) % 7
@@ -95,7 +105,7 @@ export default function Journal() {
             <span class="small muted">{minutes(dayLogs().reduce((sum, l) => sum + l.practicedSec, 0))}</span>
           </Show>
         </div>
-        <Show when={dayLogs().length} fallback={<p class="muted small" style={{ margin: 0 }}>{selected() === today ? 'Nothing yet today. Even five minutes counts.' : 'No practice recorded on this day.'}</p>}>
+        <Show when={dayLogs().length} fallback={<p class="muted small" style={{ margin: 0 }}>{selected() === today() ? 'Nothing yet today. Even five minutes counts.' : 'No practice recorded on this day.'}</p>}>
           <div class="list">
             <For each={dayLogs()}>
               {log => (
@@ -135,9 +145,9 @@ export default function Journal() {
                       {c => (
                         <button
                           data-level={level(c())}
-                          aria-current={c() === today ? 'date' : undefined}
+                          aria-current={c() === today() ? 'date' : undefined}
                           aria-pressed={pressed(c() === selected())}
-                          disabled={c() > today}
+                          disabled={c() > today()}
                           aria-label={`${parseDay(c()).toLocaleDateString()} ${level(c()) ? 'practised' : ''}`}
                           onClick={() => setSelected(c())}
                         >
