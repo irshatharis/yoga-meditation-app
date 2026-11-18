@@ -1,4 +1,4 @@
-import { createMemo, createSignal, For, onSettled, Show } from 'solid-js'
+import { createSignal, For, onSettled, Show } from 'solid-js'
 import type { BlobId, MediaRef } from '../domain/types'
 import { getBlob, put } from '../store/db'
 import { newId } from '../store/transfer'
@@ -51,12 +51,11 @@ function BlobMedia(props: { item: Extract<MediaRef, { blob: BlobId }> }) {
 }
 
 export function MediaGallery(props: { media: MediaRef[]; onRemove?: (index: number) => void }) {
-  const items = createMemo(() => props.media.map((m, i) => ({ m, i })))
   return (
     <Show when={props.media.length}>
       <div class="media-grid">
-        <For each={items()}>
-          {({ m, i }) => (
+        <For each={props.media}>
+          {(m, i) => (
             <figure class="media-item">
               <Show
                 when={m.kind !== 'link' && m}
@@ -70,7 +69,7 @@ export function MediaGallery(props: { media: MediaRef[]; onRemove?: (index: numb
                 {b => <BlobMedia item={b() as Extract<MediaRef, { blob: BlobId }>} />}
               </Show>
               <Show when={props.onRemove}>
-                <button class="media-remove" aria-label="Remove" onClick={() => props.onRemove!(i)}>
+                <button class="media-remove" aria-label="Remove" onClick={() => props.onRemove!(i())}>
                   <Icon name="close" size={14} />
                 </button>
               </Show>
