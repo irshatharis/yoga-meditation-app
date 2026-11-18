@@ -50,7 +50,11 @@ function BlobMedia(props: { item: Extract<MediaRef, { blob: BlobId }> }) {
   })
   return (
     <Show when={url()} fallback={<div class="media-missing">Media not on this device</div>}>
-      {u => (props.item.kind === 'video' ? <video src={u()} controls playsinline loop muted /> : <img src={u()} alt="" loading="lazy" />)}
+      {u => (
+        <Show when={props.item.kind === 'video'} fallback={<img src={u()} alt="" loading="lazy" />}>
+          <video src={u()} controls playsinline loop muted />
+        </Show>
+      )}
     </Show>
   )
 }
