@@ -110,7 +110,13 @@ export default function SettingsScreen() {
     const p = pending()
     if (!p) return
     const records = resolveMerge(p.plan, conflict())
-    await app.importRecords({ ...records, blobs: p.parsed.blobs, settings: takeSettings() ? parseSettings(p.parsed.backup.settings) : undefined })
+    try {
+      await app.importRecords({ ...records, blobs: p.parsed.blobs, settings: takeSettings() ? parseSettings(p.parsed.backup.settings) : undefined })
+    } catch {
+      setPending(null)
+      toast('Part of this backup could not be saved on this device. It may be out of space, or in a private window.')
+      return
+    }
     setPending(null)
     toast(`Imported ${plural(records.practices.length, 'practice')}, ${plural(records.poses.length, 'pose')} and ${plural(records.logs.length, 'session')}.`)
   }
