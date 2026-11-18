@@ -1,4 +1,5 @@
-import { createMemo, createSignal, For, Show } from 'solid-js'
+import { createMemo, For, Show } from 'solid-js'
+import { useSearchParams } from '@solidjs/router'
 import { useApp } from '../state/app'
 import { Figure } from '../figure/Figure'
 import { Icon } from '../ui/icons'
@@ -19,8 +20,11 @@ const FAMILY_LABEL: Record<Family, string> = {
 
 export default function Poses() {
   const app = useApp()
-  const [query, setQuery] = createSignal('')
-  const [family, setFamily] = createSignal<Family | 'all' | 'mine'>('all')
+  const [search, setSearch] = useSearchParams()
+  const query = () => (typeof search.q === 'string' ? search.q : '')
+  const setQuery = (q: string) => setSearch({ q: q || undefined }, { replace: true })
+  const family = (): Family | 'all' | 'mine' => (search.family === 'mine' || FAMILIES.includes(search.family as Family) ? (search.family as Family | 'mine') : 'all')
+  const setFamily = (f: Family | 'all' | 'mine') => setSearch({ family: f === 'all' ? undefined : f }, { replace: true })
   const list = createMemo(() => {
     const q = query().trim().toLowerCase()
     return [...app.poses().values()]
@@ -43,7 +47,7 @@ export default function Poses() {
       <div class="stack">
         <label class="search">
           <Icon name="search" size={18} />
-          <input class="input" type="search" placeholder="Search by name, Sanskrit, or body area" value={query()} onInput={e => setQuery(e.currentTarget.value)} aria-label="Search poses" />
+          <input class="input" type="search" placeholder="Name, Sanskrit or body area" value={query()} onInput={e => setQuery(e.currentTarget.value)} aria-label="Search poses" />
         </label>
         <div class="chips" role="group" aria-label="Pose family">
           <button class="chip" aria-pressed={pressed(family() === 'all')} onClick={() => setFamily('all')}>

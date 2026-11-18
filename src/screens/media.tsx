@@ -1,4 +1,4 @@
-import { createMemo, createSignal, For, onSettled, Show } from 'solid-js'
+import { createSignal, For, onSettled, Show } from 'solid-js'
 import type { BlobId, MediaRef } from '../domain/types'
 import { getBlob, put } from '../store/db'
 import { newId } from '../store/transfer'
@@ -16,7 +16,12 @@ export async function addMediaFromFile(): Promise<MediaRef | null> {
   }
   const kind = file.type.startsWith('video/') ? 'video' : 'image'
   const id = newId('media') as BlobId
-  await put('blobs', { id, blob: file, mime: file.type, name: file.name })
+  try {
+    await put('blobs', { id, blob: file, mime: file.type, name: file.name })
+  } catch {
+    toast('This device could not store that file. Try a smaller one.')
+    return null
+  }
   return { kind, blob: id, mime: file.type }
 }
 
@@ -45,18 +50,21 @@ function BlobMedia(props: { item: Extract<MediaRef, { blob: BlobId }> }) {
   })
   return (
     <Show when={url()} fallback={<div class="media-missing">Media not on this device</div>}>
-      {u => (props.item.kind === 'video' ? <video src={u()} controls playsinline loop muted /> : <img src={u()} alt="" loading="lazy" />)}
+      {u => (
+        <Show when={props.item.kind === 'video'} fallback={<img src={u()} alt="" loading="lazy" />}>
+          <video src={u()} controls playsinline loop muted />
+        </Show>
+      )}
     </Show>
   )
 }
 
 export function MediaGallery(props: { media: MediaRef[]; onRemove?: (index: number) => void }) {
-  const items = createMemo(() => props.media.map((m, i) => ({ m, i })))
   return (
     <Show when={props.media.length}>
       <div class="media-grid">
-        <For each={items()}>
-          {({ m, i }) => (
+        <For each={props.media}>
+          {(m, i) => (
             <figure class="media-item">
               <Show
                 when={m.kind !== 'link' && m}
@@ -70,7 +78,7 @@ export function MediaGallery(props: { media: MediaRef[]; onRemove?: (index: numb
                 {b => <BlobMedia item={b() as Extract<MediaRef, { blob: BlobId }>} />}
               </Show>
               <Show when={props.onRemove}>
-                <button class="media-remove" aria-label="Remove" onClick={() => props.onRemove!(i)}>
+                <button class="media-remove" aria-label="Remove" onClick={() => props.onRemove!(i())}>
                   <Icon name="close" size={14} />
                 </button>
               </Show>

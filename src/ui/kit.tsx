@@ -1,6 +1,7 @@
-import { createMemo, createSignal, For, Show } from 'solid-js'
+import { createMemo, createSignal, For, onCleanup, Show } from 'solid-js'
 import type { JSX } from '@solidjs/web'
 import { Portal } from '@solidjs/web'
+import { useNavigate } from '@solidjs/router'
 import { Figure } from '../figure/Figure'
 import { bounds, solve, type FigurePose } from '../figure/skeleton'
 import type { Practice } from '../domain/types'
@@ -23,6 +24,15 @@ export const clock = (sec: number) => {
   const m = Math.floor((s % 3600) / 60)
   const r = s % 60
   return h ? `${h}:${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}` : `${m}:${String(r).padStart(2, '0')}`
+}
+
+// The router stamps every history entry with its depth. An entry deeper than
+// the one the app opened on means there is a page of ours to go back to.
+const openedAt: number = history.state?._depth ?? history.length - 1
+
+export function useBack(fallback: () => string) {
+  const navigate = useNavigate()
+  return () => ((history.state?._depth ?? openedAt) > openedAt ? history.back() : navigate(fallback(), { replace: true }))
 }
 
 export const KIND_LABEL: Record<Practice['kind'], string> = { yoga: 'Yoga', meditation: 'Meditation', breath: 'Breathwork' }
@@ -63,23 +73,38 @@ export function Segmented<T extends string | number>(props: { value: T; options:
 export function Sheet(props: { open: boolean; onClose: () => void; title: string; children: JSX.Element }) {
   return (
     <Show when={props.open}>
-      <Portal>
-        <div class="scrim" onClick={() => props.onClose()} />
-        <div class="sheet" role="dialog" aria-modal="true" aria-label={props.title} ref={trapEscape(() => props.onClose())}>
-          {props.children}
-        </div>
-      </Portal>
+      <SheetPanel title={props.title} onClose={props.onClose}>
+        {props.children}
+      </SheetPanel>
     </Show>
   )
 }
 
-function trapEscape(close: () => void) {
-  return (el: HTMLElement) => {
-    el.addEventListener('keydown', e => {
-      if (e.key === 'Escape') close()
-    })
-    queueMicrotask(() => el.querySelector<HTMLElement>('button, input, select, textarea, a')?.focus())
+const focusables = (el: HTMLElement) => [...el.querySelectorAll<HTMLElement>('button:not(:disabled), input, select, textarea, a[href]')]
+
+function SheetPanel(props: { onClose: () => void; title: string; children: JSX.Element }) {
+  const opener = document.activeElement
+  onCleanup(() => {
+    if (opener instanceof HTMLElement && opener.isConnected) opener.focus()
+  })
+  const onKeyDown = (e: KeyboardEvent & { currentTarget: HTMLElement }) => {
+    if (e.key === 'Escape') return props.onClose()
+    if (e.key !== 'Tab') return
+    const all = focusables(e.currentTarget)
+    const edge = e.shiftKey ? all[0] : all.at(-1)
+    if (document.activeElement === edge) {
+      e.preventDefault()
+      ;(e.shiftKey ? all.at(-1) : all[0])?.focus()
+    }
   }
+  return (
+    <Portal>
+      <div class="scrim" onClick={() => props.onClose()} />
+      <div class="sheet" role="dialog" aria-modal="true" aria-label={props.title} onKeyDown={onKeyDown} ref={el => queueMicrotask(() => focusables(el)[0]?.focus())}>
+        {props.children}
+      </div>
+    </Portal>
+  )
 }
 
 const [toastState, setToastState] = createSignal<{ text: string; action?: { label: string; run: () => void } } | null>(null)

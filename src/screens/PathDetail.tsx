@@ -1,14 +1,14 @@
 import { createMemo, For, Show } from 'solid-js'
-import { useNavigate, useParams } from '@solidjs/router'
+import { useParams } from '@solidjs/router'
 import { useApp } from '../state/app'
 import { Icon } from '../ui/icons'
-import { KIND_LABEL, minutes } from '../ui/kit'
+import { KIND_LABEL, minutes, useBack } from '../ui/kit'
 import { estimateSec } from '../domain/timeline'
 
 export default function PathDetail() {
   const app = useApp()
   const params = useParams()
-  const navigate = useNavigate()
+  const back = useBack(() => '/practices')
   const path = createMemo(() => app.paths.find(p => p.id === params.id))
   const done = createMemo(() => new Set(app.logs().filter(l => l.path?.id === params.id && l.completed).map(l => l.path!.day)))
   const nextDay = createMemo(() => (path()?.days.findIndex((_, i) => !done().has(i + 1)) ?? -1) + 1)
@@ -16,7 +16,7 @@ export default function PathDetail() {
   return (
     <main class="page">
       <header class="topbar">
-        <button class="icon-btn" aria-label="Back" onClick={() => navigate('/practices')}>
+        <button class="icon-btn" aria-label="Back" onClick={back}>
           <Icon name="back" />
         </button>
       </header>

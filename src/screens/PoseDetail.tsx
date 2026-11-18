@@ -4,7 +4,7 @@ import { useApp } from '../state/app'
 import { Figure } from '../figure/Figure'
 import { blend, mirror, type FigurePose } from '../figure/skeleton'
 import { Icon } from '../ui/icons'
-import { Segmented, Sheet, toast } from '../ui/kit'
+import { Segmented, Sheet, toast, useBack } from '../ui/kit'
 import { MediaGallery, addMediaFromFile, addMediaLink } from './media'
 import { FAMILY_LABEL } from './Poses'
 import type { Pose } from '../domain/types'
@@ -48,6 +48,7 @@ function Detail(props: { pose: Pose }) {
   const figureFor = (s: 'right' | 'left') => (props.pose.figure ? (s === 'left' ? mirror(props.pose.figure) : props.pose.figure) : null)
   const morph = useMorph(() => figureFor('right') ?? ({} as FigurePose))
   const custom = () => props.pose.origin !== 'builtin'
+  const back = useBack(() => '/poses')
 
   const chooseSide = (s: 'right' | 'left') => {
     setSide(s)
@@ -62,7 +63,7 @@ function Detail(props: { pose: Pose }) {
   return (
     <main class="page">
       <header class="topbar">
-        <button class="icon-btn" aria-label="Back" onClick={() => (history.length > 1 ? history.back() : navigate('/poses'))}>
+        <button class="icon-btn" aria-label="Back" onClick={back}>
           <Icon name="back" />
         </button>
         <Show when={custom()}>
