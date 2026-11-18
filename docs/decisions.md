@@ -54,6 +54,22 @@ The old app used `setInterval` ticks, so a sleeping or throttled tab lost time a
 
 **No offline-ready toast.** It announced something people never asked about, on every fresh service worker install. On some phones that meant every launch. The About page and the home footer already say the app works offline.
 
+## Production review (2026-11-18)
+
+Three parallel reviews (player, data, browsing) drove every flow on phone viewports in Chromium and WebKit and fixed 38 bugs, each with a failing test first where practical. The ones that shaped the design:
+
+**Writes take a plain snapshot.** Records built from store proxies could not be cloned into IndexedDB, so edits looked saved and vanished on reload. Every write method in `src/state/app.tsx` now stores `snapshot()` output, in one place instead of in each screen.
+
+**Every IndexedDB write commits explicitly.** Chromium drops an uncommitted transaction when the page goes away, so a setting changed just before closing the app was lost about half the time. `tx.commit()` closes that window.
+
+**Practised time is counted, not inferred.** The journal used the play position, so skipping to the end logged the whole practice. The player state now accumulates real running time.
+
+**Tabs keep each other in step.** Settings and favorites are written whole, so a stale tab overwrote newer changes. A `BroadcastChannel` carries them between tabs.
+
+**Backups stream.** One `JSON.stringify` of a backup with videos exceeded the browser's string limit. Backups are now written and read in parts, and the file format is unchanged.
+
+**Feedback and source.** About, Settings and the home footer link to an email for feedback and to the MIT-licensed source on GitHub.
+
 ## Open
 
 - Background audio and wake-lock behaviour on a real iPhone has not been tested. The e2e suite covers Chromium with stubbed APIs.
