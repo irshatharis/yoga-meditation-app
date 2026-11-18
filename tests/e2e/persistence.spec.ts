@@ -24,6 +24,20 @@ async function seedLogs(page: Page, logs: unknown[]) {
   }, logs)
 }
 
+const stored = (page: Page, store: string) =>
+  page.evaluate(
+    store =>
+      new Promise<{ media?: unknown[] }[]>(resolve => {
+        const req = indexedDB.open('still')
+        req.onsuccess = () => {
+          const all = req.result.transaction(store).objectStore(store).getAll()
+          all.onsuccess = () => resolve(all.result)
+        }
+      }),
+    store
+  )
+const storedCount = async (page: Page, store: string) => (await stored(page, store)).length
+
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
 
 test('a journal note on a path session survives a reload', async ({ page }) => {
@@ -46,6 +60,7 @@ test('undoing a removed session keeps it after a reload', async ({ page }) => {
   await page.getByRole('button', { name: 'Remove from journal' }).click()
   await page.getByRole('button', { name: 'Undo' }).click()
   await expect(page.getByRole('button', { name: /Desk break/ })).toBeVisible()
+  await expect.poll(() => storedCount(page, 'logs')).toBe(1)
   await page.reload()
   await expect(page.getByRole('button', { name: /Desk break/ })).toBeVisible()
 })
@@ -57,6 +72,7 @@ test('a second photo on a pose survives a reload', async ({ page }) => {
     await chooser.setFiles({ name: `dot-${i}.png`, mimeType: 'image/png', buffer: png })
     await expect(page.locator('.media-item')).toHaveCount(i + 1)
   }
+  await expect.poll(async () => (await stored(page, 'poses'))[0]?.media?.length).toBe(2)
   await page.reload()
   await expect(page.locator('.media-item')).toHaveCount(2)
 })
@@ -68,18 +84,7 @@ test('removing a photo frees its storage', async ({ page }) => {
   await expect(page.locator('.media-item')).toHaveCount(1)
   await page.getByRole('button', { name: 'Remove', exact: true }).click()
   await expect(page.locator('.media-item')).toHaveCount(0)
-  const blobs = () =>
-    page.evaluate(
-      () =>
-        new Promise<number>(resolve => {
-          const req = indexedDB.open('still')
-          req.onsuccess = () => {
-            const count = req.result.transaction('blobs').objectStore('blobs').count()
-            count.onsuccess = () => resolve(count.result)
-          }
-        })
-    )
-  await expect.poll(blobs).toBe(0)
+  await expect.poll(() => storedCount(page, 'blobs')).toBe(0)
 })
 
 test('two open tabs keep each other up to date', async ({ page, context }) => {
