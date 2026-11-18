@@ -1,4 +1,4 @@
-import { createMemo, For, Show } from 'solid-js'
+import { createMemo, createSignal, For, onSettled, Show } from 'solid-js'
 import { useNavigate } from '@solidjs/router'
 import { useApp } from '../state/app'
 import { dayKey, minutesOn, streaks, weekDays, parseDay } from '../domain/stats'
@@ -25,14 +25,21 @@ const SUGGEST: [maxHour: number, ids: string[]][] = [
 export default function Today() {
   const app = useApp()
   const navigate = useNavigate()
-  const now = new Date()
-  const today = dayKey(now.getTime())
-  const streak = createMemo(() => streaks(app.logs(), today))
-  const todayMin = createMemo(() => minutesOn(app.logs(), today))
-  const week = createMemo(() => weekDays(today, app.settings.weekStart).map(d => ({ day: d, min: minutesOn(app.logs(), d) })))
+  // An installed app resumes without reloading, so the time is read again on return.
+  const [stamp, setStamp] = createSignal(Date.now())
+  onSettled(() => {
+    const check = () => setStamp(Date.now())
+    document.addEventListener('visibilitychange', check)
+    return () => document.removeEventListener('visibilitychange', check)
+  })
+  const hour = createMemo(() => new Date(stamp()).getHours())
+  const today = createMemo(() => dayKey(stamp()))
+  const streak = createMemo(() => streaks(app.logs(), today()))
+  const todayMin = createMemo(() => minutesOn(app.logs(), today()))
+  const week = createMemo(() => weekDays(today(), app.settings.weekStart).map(d => ({ day: d, min: minutesOn(app.logs(), d) })))
 
   const suggestion = createMemo<Practice | undefined>(() => {
-    const ids = SUGGEST.find(([h]) => now.getHours() < h)?.[1] ?? []
+    const ids = SUGGEST.find(([h]) => hour() < h)?.[1] ?? []
     const fav = app.favorites().map(id => app.practice(id)).find(Boolean)
     return ids.map(id => app.practice(id)).find(Boolean) ?? fav ?? app.practices()[0]
   })
@@ -75,7 +82,7 @@ export default function Today() {
       </header>
 
       <div>
-        <p class="eyebrow">{greeting(now.getHours())}</p>
+        <p class="eyebrow">{greeting(hour())}</p>
         <h1 class="display" style={{ 'margin-top': '6px' }}>
           A little space <em>for yourself.</em>
         </h1>
@@ -129,7 +136,7 @@ export default function Today() {
             {d => (
               <div class="day">
                 <span>{parseDay(d.day).toLocaleDateString(undefined, { weekday: 'narrow' })}</span>
-                <span class={['dot', { done: d.min > 0, today: d.day === today }]} title={`${d.min} min`}>
+                <span class={['dot', { done: d.min > 0, today: d.day === today() }]} title={`${d.min} min`}>
                   <Show when={d.min > 0}>
                     <Icon name="check" size={16} />
                   </Show>
