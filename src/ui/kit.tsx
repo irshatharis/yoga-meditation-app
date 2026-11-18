@@ -1,4 +1,4 @@
-import { createMemo, createSignal, For, Show } from 'solid-js'
+import { createMemo, createSignal, For, onCleanup, Show } from 'solid-js'
 import type { JSX } from '@solidjs/web'
 import { Portal } from '@solidjs/web'
 import { useNavigate } from '@solidjs/router'
@@ -73,23 +73,38 @@ export function Segmented<T extends string | number>(props: { value: T; options:
 export function Sheet(props: { open: boolean; onClose: () => void; title: string; children: JSX.Element }) {
   return (
     <Show when={props.open}>
-      <Portal>
-        <div class="scrim" onClick={() => props.onClose()} />
-        <div class="sheet" role="dialog" aria-modal="true" aria-label={props.title} ref={trapEscape(() => props.onClose())}>
-          {props.children}
-        </div>
-      </Portal>
+      <SheetPanel title={props.title} onClose={props.onClose}>
+        {props.children}
+      </SheetPanel>
     </Show>
   )
 }
 
-function trapEscape(close: () => void) {
-  return (el: HTMLElement) => {
-    el.addEventListener('keydown', e => {
-      if (e.key === 'Escape') close()
-    })
-    queueMicrotask(() => el.querySelector<HTMLElement>('button, input, select, textarea, a')?.focus())
+const focusables = (el: HTMLElement) => [...el.querySelectorAll<HTMLElement>('button:not(:disabled), input, select, textarea, a[href]')]
+
+function SheetPanel(props: { onClose: () => void; title: string; children: JSX.Element }) {
+  const opener = document.activeElement
+  onCleanup(() => {
+    if (opener instanceof HTMLElement && opener.isConnected) opener.focus()
+  })
+  const onKeyDown = (e: KeyboardEvent & { currentTarget: HTMLElement }) => {
+    if (e.key === 'Escape') return props.onClose()
+    if (e.key !== 'Tab') return
+    const all = focusables(e.currentTarget)
+    const edge = e.shiftKey ? all[0] : all.at(-1)
+    if (document.activeElement === edge) {
+      e.preventDefault()
+      ;(e.shiftKey ? all.at(-1) : all[0])?.focus()
+    }
   }
+  return (
+    <Portal>
+      <div class="scrim" onClick={() => props.onClose()} />
+      <div class="sheet" role="dialog" aria-modal="true" aria-label={props.title} onKeyDown={onKeyDown} ref={el => queueMicrotask(() => focusables(el)[0]?.focus())}>
+        {props.children}
+      </div>
+    </Portal>
+  )
 }
 
 const [toastState, setToastState] = createSignal<{ text: string; action?: { label: string; run: () => void } } | null>(null)
