@@ -1,4 +1,4 @@
-import { createMemo, createSignal, For, Show } from 'solid-js'
+import { createMemo, createSignal, For, Show, untrack } from 'solid-js'
 import { useApp } from '../state/app'
 import { addDays, byDay, dayKey, parseDay, streaks, totals, type DayKey } from '../domain/stats'
 import { Icon } from '../ui/icons'
@@ -39,10 +39,8 @@ export default function Journal() {
     return min >= goal * 1.5 ? 3 : min >= goal ? 2 : 1
   }
   const dayLogs = () => days().get(selected()) ?? []
-  const kindShare = () => {
-    const total = Math.max(1, t().byKind.yoga + t().byKind.meditation + t().byKind.breath)
-    return (['yoga', 'meditation', 'breath'] as const).map(k => ({ k, pct: (t().byKind[k] / total) * 100 }))
-  }
+  const KINDS = ['yoga', 'meditation', 'breath'] as const
+  const pct = (k: SessionLog['kind']) => (t().byKind[k] / Math.max(1, t().byKind.yoga + t().byKind.meditation + t().byKind.breath)) * 100
 
   return (
     <main class="page">
@@ -73,13 +71,13 @@ export default function Journal() {
       <Show when={t().minutes > 0}>
         <section class="card pad stack">
           <div class="bars">
-            <For each={kindShare()}>{x => <span style={{ width: `${x.pct}%`, background: x.k === 'yoga' ? 'var(--accent)' : x.k === 'meditation' ? 'var(--dusk)' : 'var(--tide)' }} />}</For>
+            <For each={KINDS}>{k => <span style={{ width: `${pct(k)}%`, background: k === 'yoga' ? 'var(--accent)' : k === 'meditation' ? 'var(--dusk)' : 'var(--tide)' }} />}</For>
           </div>
           <div class="row wrap small" style={{ gap: '16px' }}>
-            <For each={kindShare()}>
-              {x => (
+            <For each={KINDS}>
+              {k => (
                 <span>
-                  <span class={['tag', x.k]}>{KIND_LABEL[x.k]}</span> {t().byKind[x.k]} min
+                  <span class={['tag', k]}>{KIND_LABEL[k]}</span> {t().byKind[k]} min
                 </span>
               )}
             </For>
@@ -167,8 +165,8 @@ export default function Journal() {
 
 function EditLog(props: { log: SessionLog; onDone: () => void }) {
   const app = useApp()
-  const [note, setNote] = createSignal(props.log.note ?? '')
-  const [feeling, setFeeling] = createSignal(props.log.feeling)
+  const [note, setNote] = createSignal(untrack(() => props.log.note ?? ''))
+  const [feeling, setFeeling] = createSignal(untrack(() => props.log.feeling))
   return (
     <div class="stack">
       <h2 class="display">{props.log.title}</h2>
