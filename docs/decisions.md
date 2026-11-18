@@ -44,7 +44,15 @@ The old app used `setInterval` ticks, so a sleeping or throttled tab lost time a
 
 ## Hosting
 
-**New worker `still` on still.irshath.com.** The old worker name `yoga-meditation-app` becomes a redirect worker for yoga.irshath.com. It 301s every path. It also answers `/sw.js` with a service worker that clears caches and unregisters itself. Without that, installed copies of the old PWA would never update, because browsers refuse redirected service worker scripts.
+**One worker, `still`, on still.irshath.com.** The old yoga.irshath.com domain and its worker are gone, with no redirect. Copies of the old React app installed from that domain keep running from their cache until removed. Every push to `main` deploys.
+
+## Discovery
+
+**Prerendered public pages.** Link previews and many crawlers never run JavaScript. The build writes one HTML file per public route with its own title, description, canonical URL and share card, plus a plain text version of the page. The app replaces that text on boot. The text only fades in after two seconds, so a normal boot never flashes it. Personal routes such as the journal get `noindex` at runtime.
+
+**A share card made from the real app.** `scripts/og.mjs` photographs the live UI and composes the card, so it never drifts from what people get. It is a JPEG under 300 KB because WhatsApp drops larger preview images.
+
+**No offline-ready toast.** It announced something people never asked about, on every fresh service worker install. On some phones that meant every launch. The About page and the home footer already say the app works offline.
 
 ## Open
 

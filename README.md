@@ -32,7 +32,7 @@ There is no account and no server. Everything a person does stays in their brows
 - `src/engine` holds browser integrations: audio, speech, wake lock and media session.
 - `src/store` holds IndexedDB, schemas, backup, merge and share links.
 - `src/state` holds the app store. `src/screens` and `src/ui` hold the interface.
-- `redirect/` is the tiny worker that moves the old `yoga.irshath.com` to the new domain and retires the old service worker.
+- `src/seo.ts` holds page titles and descriptions. `scripts/seo-plugin.ts` uses it at build time to prerender every public page with its share card, plus `sitemap.xml` and `robots.txt`.
 
 ## Develop
 
@@ -50,11 +50,11 @@ The pose gallery at `/gallery.html` (dev server only) shows every figure side by
 
 To regenerate the app icons after changing `public/icons/icon.svg`, run `node scripts/icons.mjs`.
 
+The link preview image `public/og.jpg` is a photograph of the real app. After a visual change, build, run `npx vite preview --port 4390`, then `node scripts/og.mjs http://localhost:4390`.
+
 ## Deploy
 
 Every push to `main` runs the type-check, unit tests and end-to-end tests, then deploys with `cf deploy` (see `.github/workflows/deploy.yml`). Pull requests get the same checks and a dry-run deploy. The workflow needs the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets.
-
-The redirect worker deploys separately with `cd redirect && npm install && npm run deploy`.
 
 ## Credits and licences
 
