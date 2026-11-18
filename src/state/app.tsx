@@ -62,6 +62,18 @@ function createApp(initial: Loaded) {
   const practices = createMemo(() => [...mine.practices.slice().sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0)), ...PRACTICES])
   const practiceMap = createMemo(() => new Map<PracticeId, Practice>(practices().map(p => [p.id, p])))
 
+  const blobsOf = (pose: Pose | undefined) => (pose?.media ?? []).flatMap(m => (m.kind === 'link' ? [] : [m.blob]))
+  // Photos and videos are stored apart from the pose that shows them. Drop the
+  // ones a change leaves behind, or they fill the device and every backup. A
+  // backup restored as a copy shares files with the original, so keep any file
+  // another pose still shows.
+  const dropBlobs = (id: PoseId, keep: Pose | undefined) => {
+    const others = untrack(() => mine.poses.filter(p => p.id !== id))
+    const kept = new Set([...blobsOf(keep), ...others.flatMap(blobsOf)])
+    const gone = blobsOf(untrack(() => mine.poses.find(p => p.id === id))).filter(b => !kept.has(b))
+    return () => Promise.all(gone.map(b => db.remove('blobs', b)))
+  }
+
   const upsert = <T extends { id: string }>(list: T[], item: T) => {
     const i = list.findIndex(x => x.id === item.id)
     if (i === -1) list.unshift(item)
@@ -99,12 +111,16 @@ function createApp(initial: Loaded) {
     // proxies that IndexedDB refuses to clone.
     async savePose(pose: Pose) {
       const plain = snapshot(pose)
+      const drop = dropBlobs(plain.id, plain)
       setMine(s => upsert(s.poses, plain))
       await db.put('poses', plain)
+      await drop()
     },
     async deletePose(id: PoseId) {
+      const drop = dropBlobs(id, undefined)
       setMine(s => void (s.poses = s.poses.filter(p => p.id !== id)))
       await db.remove('poses', id)
+      await drop()
     },
     async savePractice(practice: Practice) {
       const stamped = snapshot({ ...practice, updatedAt: Date.now() })
