@@ -434,7 +434,7 @@ function Session(props: SessionProps) {
             <div class="gate-card">
               <p class="eyebrow">{init.resumed ? 'Pick up where you left off' : minutes(state().timeline.totalSec)}</p>
               <h2 class="display">{props.practice.title}</h2>
-              <p class="muted">Your screen stays on while you practise. Tap pause any time.</p>
+              <p class="muted">{settings.keepAwake ? 'Your screen stays on while you practise. Tap pause any time.' : 'Tap pause any time.'}</p>
               <button class="btn primary big block" onClick={() => toggle(true)}>
                 <Icon name="play" fill size={18} /> {init.resumed ? 'Resume' : 'Begin'}
               </button>
