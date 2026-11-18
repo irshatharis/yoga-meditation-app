@@ -1,4 +1,4 @@
-import { createContext, createEffect, createMemo, createSignal, createStore, deep, snapshot, untrack, useContext } from 'solid-js'
+import { createContext, createEffect, createMemo, createSignal, createStore, deep, reconcile, snapshot, untrack, useContext } from 'solid-js'
 import type { JSX } from '@solidjs/web'
 import { POSES } from '../content/poses'
 import { PRACTICES } from '../content/practices'
@@ -65,7 +65,7 @@ function createApp(initial: Loaded) {
   const upsert = <T extends { id: string }>(list: T[], item: T) => {
     const i = list.findIndex(x => x.id === item.id)
     if (i === -1) list.unshift(item)
-    else list[i] = item
+    else reconcile(item, 'id')(list[i]!)
   }
 
   return {
@@ -95,16 +95,19 @@ function createApp(initial: Loaded) {
       })
       queueMicrotask(() => void db.setKV('favorites', snapshot(mine.favorites)))
     },
+    // Callers build records by spreading store values, so nested fields can be
+    // proxies that IndexedDB refuses to clone.
     async savePose(pose: Pose) {
-      setMine(s => upsert(s.poses, pose))
-      await db.put('poses', pose)
+      const plain = snapshot(pose)
+      setMine(s => upsert(s.poses, plain))
+      await db.put('poses', plain)
     },
     async deletePose(id: PoseId) {
       setMine(s => void (s.poses = s.poses.filter(p => p.id !== id)))
       await db.remove('poses', id)
     },
     async savePractice(practice: Practice) {
-      const stamped = { ...practice, updatedAt: Date.now() }
+      const stamped = snapshot({ ...practice, updatedAt: Date.now() })
       setMine(s => upsert(s.practices, stamped))
       await db.put('practices', stamped)
     },
