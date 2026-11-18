@@ -62,6 +62,8 @@ test('the skip buttons are big enough to hit without looking', async ({ page }) 
 test('the voice says each line once, in one voice, through quick skipping', async ({ page }) => {
   await fakeSpeech(page)
   await page.goto('/practices/morning-flow')
+  // Page time stands still between taps, so Previous lands by the step rule, not by how slow the run was.
+  await page.clock.pauseAt(Date.now() + 1_000)
   await page.getByRole('button', { name: /^Begin/ }).click()
   const next = page.getByRole('button', { name: 'Next', exact: true })
   for (let i = 0; i < 4; i++) await next.click()
