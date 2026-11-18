@@ -1,53 +1,68 @@
-# Still · Yoga & Meditation
+# still.
 
-A personal, offline-capable Yoga + Meditation PWA built with React and TypeScript.
+A free, private, offline yoga, breathwork and meditation app. It lives at https://still.irshath.com.
 
-## Run locally
+There is no account and no server. Everything a person does stays in their browser on their own device. Backups are a JSON file they export and import themselves.
 
-Requirements: Node.js 20 or newer.
+## What it does
+
+- 31 guided practices: yoga sequences, sun salutations, yin, meditation (breath awareness, body scan, loving-kindness, noting and more) and breathwork (box, 4-7-8, coherent, alternate nostril).
+- Three multi-day paths for beginners.
+- A library of 68 poses, each drawn by the app as a figure. Each figure morphs smoothly into the next pose.
+- A get-ready gap before every pose, with the name and setup read aloud. You can set its length or have the app wait for your tap.
+- The screen stays on during a practice (Screen Wake Lock, with a muted video fallback). Timing comes from the wall clock, so a frozen or backgrounded tab picks up where it should be.
+- Bells, background sounds and voice guidance all work offline.
+- Build your own practices. Add your own poses with your own photos, videos or links.
+- A journal with streaks, a calendar, a feeling and a note for every session.
+- Share a practice with a link. The practice travels inside the link itself.
+- Installable as a PWA, with full offline support after the first visit.
+
+## Stack
+
+- [Solid 2.0](https://github.com/solidjs/solid) and `@solidjs/router` 2.0, a single-page app.
+- Vite 8 with `vite-plugin-pwa` (Workbox `generateSW`).
+- IndexedDB for storage. valibot validates imports and share links at the boundary.
+- Cloudflare Workers static assets for hosting.
+
+## Layout
+
+- `src/domain` holds pure logic: types, the timeline compiler, the player state machine and journal stats. It has unit tests.
+- `src/content` holds the built-in poses, practices and paths.
+- `src/figure` draws poses from a small forward-kinematics skeleton.
+- `src/engine` holds browser integrations: audio, speech, wake lock and media session.
+- `src/store` holds IndexedDB, schemas, backup, merge and share links.
+- `src/state` holds the app store. `src/screens` and `src/ui` hold the interface.
+- `src/seo.ts` holds page titles and descriptions. `scripts/seo-plugin.ts` uses it at build time to prerender every public page with its share card, plus `sitemap.xml` and `robots.txt`.
+
+## Develop
+
+Requires Node.js 22.12 or newer.
 
 ```bash
 npm install
-npm run dev
+npm run dev          # local dev server
+npm test             # unit tests (vitest)
+npm run e2e          # end-to-end tests against a production build (Playwright)
+npm run build        # type-check and build
 ```
 
-Open the local URL printed by Vite.
+The pose gallery at `/gallery.html` (dev server only) shows every figure side by side.
 
-## Production build
+To regenerate the app icons after changing `public/icons/icon.svg`, run `node scripts/icons.mjs`.
 
-```bash
-npm run build
-npm run preview
-```
-
-The production build is in `dist/`.
+The link preview image `public/og.jpg` is a photograph of the real app. After a visual change, build, run `npx vite preview --port 4390`, then `node scripts/og.mjs http://localhost:4390`.
 
 ## Deploy
 
-The app is hosted on Cloudflare Workers (static assets) at https://yoga.irshath.com, configured in `cloudflare.config.ts`.
+Every push to `main` runs the type-check, unit tests and end-to-end tests, then deploys with `cf deploy` (see `.github/workflows/deploy.yml`). Pull requests get the same checks and a dry-run deploy. The workflow needs the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets.
 
-- Every push to `main` deploys automatically via `.github/workflows/deploy.yml`. Pull requests are type-checked, built, and validated with a dry run.
-- The workflow uses the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets.
-- To deploy manually from your machine: `npm run deploy` (requires `cf auth login`).
+## Feedback
 
-## Install as an app
+Ideas, bugs and kind words are welcome. Email irshatharis@gmail.com or open an issue on GitHub.
 
-Open https://yoga.irshath.com:
+## Credits and licences
 
-- **iPhone/iPad:** Safari → Share → Add to Home Screen.
-- **Mac/Chrome:** use the install icon in the address bar, or Chrome menu → Cast, save, and share → Install page as app.
-
-The app caches its built assets for offline use after the first successful load. Voice availability depends on the browser and installed system voices.
-
-## Updating your routine
-
-Yoga and meditation steps live in `src/routines.ts`. Each step has an `id`, `title`, `duration` (seconds), and spoken `instruction`; an optional `cue` can add a short reminder. Add, remove, reorder, or edit steps there.
-
-User-adjustable preferences are stored locally in the browser. The yoga sun-salutation duration is currently estimated at 90 seconds per round; change the calculation in `src/App.tsx` if you want a different default.
-
-## Notes
-
-- No account, backend, analytics, or external database.
-- Settings are stored on the current device/browser.
-- The first version does not sync settings between devices.
-- Silent meditation uses a bell at the end. Guided meditation speaks the instruction at the start of each stage.
+- Sounds are CC0 recordings from freesound.org by zambolino, dersinnsspace, kerozenne, pazdalma, unfa, derjuli, upkey and yurkobb.
+- Safety guidance is adapted from NCCIH, "Yoga: What You Need To Know" (public domain). NCCIH does not endorse this app.
+- Fraunces and Inter are under the SIL Open Font License.
+- The code, practices, scripts and pose instructions are original work under the MIT License (see `LICENSE`).
