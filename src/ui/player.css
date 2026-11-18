@@ -64,6 +64,9 @@
 }
 
 .player-top {
+  /* Above the start card, so the practice can be closed before it begins. */
+  position: relative;
+  z-index: 6;
   display: grid;
   grid-template-columns: 44px 1fr 44px;
   align-items: center;
@@ -92,9 +95,11 @@
   place-items: center;
   min-height: 0;
   position: relative;
+  /* The stage gets whatever height is left, so its contents size to it. */
+  container-type: size;
 }
 .stage-figure {
-  width: min(92vw, 480px, 52dvh);
+  width: min(100cqw, 480px, 100cqh * 220 / 212);
   transition: transform 0.6s var(--ease), opacity 0.4s;
 }
 .stage-figure .figure {
@@ -241,7 +246,7 @@
 }
 
 .calm-orb {
-  width: min(56vw, 260px);
+  width: min(56cqw, 260px, 100cqh - 84px);
   aspect-ratio: 1;
   border-radius: 50%;
   background: radial-gradient(circle at 38% 32%, rgba(255, 255, 255, 0.5), transparent 45%), radial-gradient(circle, color-mix(in srgb, var(--p-accent) 75%, transparent), color-mix(in srgb, var(--p-accent) 25%, transparent));
@@ -260,7 +265,7 @@
 
 .breath-orb {
   position: relative;
-  width: min(72vw, 320px);
+  width: min(80cqw, 320px, 100cqh);
   aspect-ratio: 1;
   display: grid;
   place-items: center;
@@ -446,5 +451,60 @@
 @media (min-width: 900px) and (min-height: 700px) {
   .player {
     padding-inline: 10vw;
+  }
+}
+/* A phone on its side: the figure on the left, everything else beside it. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .player:not(.summary) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+    column-gap: 24px;
+    padding-inline: max(18px, env(safe-area-inset-left)) max(18px, env(safe-area-inset-right));
+  }
+  .player-top {
+    grid-column: 1 / -1;
+    margin-top: 0;
+  }
+  .player-stage {
+    grid-column: 1;
+    grid-row: 2 / -1;
+  }
+  .player-info {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: end;
+  }
+  .player-clock {
+    grid-column: 2;
+    grid-row: 3;
+    margin-top: 4px;
+    min-height: 0;
+  }
+  .player-controls {
+    grid-column: 2;
+    grid-row: 4;
+    margin-top: 6px;
+  }
+  .player-foot {
+    grid-column: 2;
+    grid-row: 5;
+    margin-top: 8px;
+  }
+  .player-name {
+    font-size: clamp(1.4rem, 4.5vw, 2rem);
+  }
+  .ring {
+    width: 72px;
+    height: 72px;
+  }
+  .ring-label {
+    font-size: 1.2rem;
+  }
+  .ring.big .ring-label {
+    font-size: 1.8rem;
+  }
+  .play-btn {
+    width: 56px;
+    height: 56px;
   }
 }

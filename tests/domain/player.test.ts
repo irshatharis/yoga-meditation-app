@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { compile } from '../../src/domain/timeline'
-import { advance, back, dueCues, extend, locate, next, pause, play, position, start } from '../../src/domain/player'
+import { advance, back, dueCues, extend, locate, next, pause, play, position, practiced, start } from '../../src/domain/player'
 import { DEFAULT_SETTINGS, poseId, practiceId, type Pose, type PoseId, type Practice, type Settings } from '../../src/domain/types'
 
 const pose = (id: string, sided: boolean): Pose => ({
@@ -157,6 +157,47 @@ describe('player', () => {
     s = extend(s, 12_000, 15)
     expect(s.timeline.segments[1]!.durationSec).toBe(45)
     expect(s.timeline.totalSec).toBe(timeline.totalSec + 15)
+  })
+
+  it('moves the get-ready countdown to the new end when the gap is extended', () => {
+    const s = extend(play(start(timeline), 0), 2_000, 15)
+    const ticks = dueCues(s.timeline, 0, 26_000, Infinity).filter(c => c.sound === 'tick')
+    expect(ticks.map(c => c.key)).toEqual(['0:1', '0:2', '0:3'])
+    expect(dueCues(s.timeline, 6_500, 10_000, Infinity).filter(c => c.sound === 'tick')).toEqual([])
+    expect(dueCues(s.timeline, 21_500, 22_000).filter(c => c.sound === 'tick')).toHaveLength(1)
+  })
+
+  it('counts time spent practising, not time skipped', () => {
+    let s = play(start(timeline), 0)
+    s = next(next(next(next(s, 4_000), 5_000), 6_000), 7_000)
+    expect(s.phase.status).toBe('done')
+    expect(practiced(s, 50_000)).toBe(7_000)
+  })
+
+  it('leaves paused time out of the practised time', () => {
+    let s = play(start(timeline), 0)
+    s = pause(s, 20_000)
+    s = play(s, 500_000)
+    expect(practiced(s, 510_000)).toBe(30_000)
+    s = advance(s, 10_000_000)
+    expect(s.phase.status).toBe('done')
+    expect(practiced(s, 10_000_000)).toBe(timeline.totalSec * 1000)
+  })
+
+  it('counts a part replayed after going back', () => {
+    let s = play(start(timeline), 0)
+    s = back(s, 2_000)
+    expect(practiced(s, 4_000)).toBe(4_000)
+  })
+
+  it('keeps going when skipping from a "wait for me" stop', () => {
+    const gated = compile(practice([{ type: 'pose', pose: poseId('child'), holdSec: 30 }, { type: 'pose', pose: poseId('cobra'), holdSec: 30 }]), library, settings({ prepareSec: 10, waitForMe: true }))
+    let s = advance(play(start(gated), 0), 12_000)
+    expect(s.phase.status).toBe('waiting')
+    s = next(s, 15_000)
+    expect(s.phase.status).toBe('running')
+    expect(locate(s.timeline, position(s, 15_000)).segment.kind).toBe('hold')
+    expect(practiced(s, 16_000)).toBe(11_000)
   })
 })
 

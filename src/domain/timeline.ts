@@ -3,6 +3,8 @@ import type { BreathPattern, Pacing, Pose, PoseId, Practice, PracticeItem, Setti
 
 export type Sound = 'bell' | 'tick' | 'end'
 
+// `at` is seconds into the segment, or seconds before its end when negative,
+// so a countdown stays at the end when the segment is extended.
 export type Cue = { at: number; say?: string; sound?: Sound }
 
 export type SegmentKind = 'prepare' | 'switch' | 'hold' | 'flow' | 'sit' | 'breath' | 'rest'
@@ -238,7 +240,7 @@ export function compile(practice: Practice, library: ReadonlyMap<PoseId, Pose>, 
 
 function countdown(duration: number, settings: Settings): Cue[] {
   if (!settings.sound.countdown || duration < 5) return []
-  return [3, 2, 1].map(n => ({ at: duration - n, sound: 'tick' as const }))
+  return [3, 2, 1].map(n => ({ at: -n, sound: 'tick' as const }))
 }
 
 function holdCues(pose: Pose, itemCue: string | undefined, hold: number, detail: Settings['voice']['detail']): Cue[] {
