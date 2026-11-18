@@ -79,3 +79,21 @@ test('opening the same share link twice adds the practice once', async ({ page, 
   await expect(friend.getByText('Shared twice')).toHaveCount(1)
   await other.close()
 })
+
+test('an import that runs out of storage says so', async ({ page }) => {
+  await page.addInitScript(() => {
+    const put = IDBObjectStore.prototype.put
+    IDBObjectStore.prototype.put = function (this: IDBObjectStore, ...args: Parameters<IDBObjectStore['put']>) {
+      if (this.name === 'blobs') throw new DOMException('The quota has been exceeded.', 'QuotaExceededError')
+      return put.apply(this, args)
+    }
+  })
+  const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+  const pose = { id: 'pose-x', name: 'With photo', family: 'standing', level: 'gentle', focus: [], sided: false, summary: '', setup: [], cues: [], cautions: [], figure: null, media: [{ kind: 'image', blob: 'media-x', mime: 'image/png' }], origin: 'mine' }
+  const backup = { app: 'still', format: 1, exportedAt: Date.now(), poses: [pose], media: [{ id: 'media-x', mime: 'image/png', name: 'x.png', data: png }] }
+  await page.goto('/settings')
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Import backup' }).click()])
+  await chooser.setFiles({ name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) })
+  await page.getByRole('button', { name: 'Import', exact: true }).click()
+  await expect(page.locator('.toast')).toContainText('could not be saved')
+})
