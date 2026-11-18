@@ -16,3 +16,13 @@ describe('import schemas accept every built-in record', () => {
     expect(out.issues?.map(i => `${i.path?.map(p => p.key).join('.')}: ${i.message}`) ?? []).toEqual([])
   })
 })
+
+describe('pose media links from files and share links', () => {
+  const withLink = (href: string) => ({ ...POSES[0], origin: 'mine', media: [{ kind: 'link', href }] })
+  it('accepts web links', () => {
+    expect(v.is(PoseSchema, withLink('https://example.com/video'))).toBe(true)
+  })
+  it.each(['javascript:alert(1)', 'data:text/html,<script>alert(1)</script>', 'file:///etc/passwd'])('rejects %s', href => {
+    expect(v.is(PoseSchema, withLink(href))).toBe(false)
+  })
+})

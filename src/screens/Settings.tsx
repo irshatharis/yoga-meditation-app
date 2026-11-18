@@ -1,10 +1,11 @@
 import { createSignal, For, onSettled, Show, snapshot } from 'solid-js'
 import type { JSX } from '@solidjs/web'
+import { useNavigate } from '@solidjs/router'
 import { useApp } from '../state/app'
 import { listVoices, onVoicesChanged, pickVoice, speak } from '../engine/speech'
 import { bell, setAmbient, unlockAudio } from '../engine/audio'
 import * as db from '../store/db'
-import { backupFileName, parseBackup, planMerge, resolveMerge, toBackup, type Conflict, type MergePlan, type ParsedBackup } from '../store/transfer'
+import { backupBlob, backupFileName, parseBackup, planMerge, resolveMerge, type Conflict, type MergePlan, type ParsedBackup } from '../store/transfer'
 import { parseSettings } from '../store/schema'
 import { canPromptInstall, isIOS, isStandalone, onInstallAvailable, promptInstall } from '../pwa'
 import { Icon } from '../ui/icons'
@@ -38,6 +39,7 @@ function Group(props: { title: string; id?: string; children: JSX.Element }) {
 
 export default function SettingsScreen() {
   const app = useApp()
+  const navigate = useNavigate()
   const s = app.settings
   const set = (fn: (d: Settings) => void) => app.updateSettings(fn)
   const [voices, setVoices] = createSignal<SpeechSynthesisVoice[]>([])
@@ -85,15 +87,18 @@ export default function SettingsScreen() {
 
   const exportAll = async () => {
     const blobs: db.StoredBlob[] = includeMedia() ? await db.getAll<db.StoredBlob>('blobs') : []
-    const backup = await toBackup({ settings: structuredClone(snapshot(s)), poses: app.userPoses(), practices: app.userPractices(), logs: app.logs(), blobs }, includeMedia())
-    download(backupFileName(), new Blob([JSON.stringify(backup)], { type: 'application/json' }))
-    toast('Backup saved to your downloads.')
+    try {
+      download(backupFileName(), await backupBlob({ settings: snapshot(s), poses: app.userPoses(), practices: app.userPractices(), logs: app.logs(), blobs }, includeMedia()))
+      toast('Backup saved to your downloads.')
+    } catch {
+      toast('The backup could not be made. Try again without photos and videos.')
+    }
   }
 
   const importFile = async () => {
     const file = await pickFile('application/json,.json')
     if (!file) return
-    const parsed = parseBackup(await file.text())
+    const parsed = parseBackup(new Uint8Array(await file.arrayBuffer()))
     if (!parsed.ok) {
       toast(parsed.message)
       return
@@ -105,15 +110,23 @@ export default function SettingsScreen() {
     const p = pending()
     if (!p) return
     const records = resolveMerge(p.plan, conflict())
-    await app.importRecords({ ...records, blobs: p.parsed.blobs, settings: takeSettings() ? parseSettings(p.parsed.backup.settings) : undefined })
+    try {
+      await app.importRecords({ ...records, blobs: p.parsed.blobs, settings: takeSettings() ? parseSettings(p.parsed.backup.settings) : undefined })
+    } catch {
+      setPending(null)
+      toast('Part of this backup could not be saved on this device. It may be out of space, or in a private window.')
+      return
+    }
     setPending(null)
     toast(`Imported ${plural(records.practices.length, 'practice')}, ${plural(records.poses.length, 'pose')} and ${plural(records.logs.length, 'session')}.`)
   }
 
+  const alreadyHave = (x: { clash: unknown[]; same: number }) => `${x.same + x.clash.length} you already have${x.clash.length ? ` (${x.clash.length} changed)` : ''}`
+
   return (
     <main class="page">
       <header class="topbar">
-        <button class="icon-btn" aria-label="Back" onClick={() => history.back()}>
+        <button class="icon-btn" aria-label="Back" onClick={() => (history.length > 1 ? history.back() : navigate('/'))}>
           <Icon name="back" />
         </button>
         <strong>Settings</strong>
@@ -171,7 +184,7 @@ export default function SettingsScreen() {
           <div class="setting" style={{ 'flex-wrap': 'wrap' }}>
             <div>
               <strong>Voice</strong>
-              <small>{pickVoice(s.voice.voiceURI)?.name ?? 'Device default'}</small>
+              <small>{(voices().length ? pickVoice(s.voice.voiceURI)?.name : undefined) ?? 'Device default'}</small>
             </div>
             <select class="input" style={{ width: 'auto', 'max-width': '100%' }} value={s.voice.voiceURI ?? ''} onChange={e => set(d => void (d.voice.voiceURI = e.currentTarget.value || null))} aria-label="Voice">
               <option value="">Best available</option>
@@ -336,8 +349,8 @@ export default function SettingsScreen() {
                 From {new Date(p().parsed.backup.exportedAt).toLocaleDateString(undefined, { dateStyle: 'long' })}.
               </p>
               <ul class="small" style={{ margin: 0, 'padding-left': '1.2em' }}>
-                <li>{plural(p().plan.practices.add.length, 'new practice')}, {p().plan.practices.clash.length} you already have</li>
-                <li>{plural(p().plan.poses.add.length, 'new pose')}, {p().plan.poses.clash.length} you already have</li>
+                <li>{plural(p().plan.practices.add.length, 'new practice')}, {alreadyHave(p().plan.practices)}</li>
+                <li>{plural(p().plan.poses.add.length, 'new pose')}, {alreadyHave(p().plan.poses)}</li>
                 <li>
                   {plural(p().plan.logs.add.length, 'journal session')}{p().plan.logs.duplicate ? `, ${p().plan.logs.duplicate} already in your journal` : ''}
                 </li>

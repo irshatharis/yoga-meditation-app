@@ -2,7 +2,7 @@ import { createSignal, For, onSettled, Show } from 'solid-js'
 import { useNavigate } from '@solidjs/router'
 import { useApp } from '../state/app'
 import { compile } from '../domain/timeline'
-import { decodeShare, newId } from '../store/transfer'
+import { decodeShare, newId, same } from '../store/transfer'
 import type { Pose, PoseId, Practice, PracticeId } from '../domain/types'
 import type { Share } from '../store/transfer'
 import { Icon } from '../ui/icons'
@@ -38,9 +38,18 @@ export default function ShareImport() {
     }
   }
 
+  const unstamped = (p: Practice) => ({ ...p, origin: undefined, updatedAt: undefined })
+  const owned = () => {
+    const s = share()
+    const mine = s && app.practice(s.practice.id)
+    return mine && same(unstamped(mine), unstamped(s.practice as Practice)) ? mine : undefined
+  }
+
+  let adding = false
   const add = async () => {
     const s = share()
-    if (!s) return
+    if (!s || adding) return
+    adding = true
     const remap = new Map<string, PoseId>()
     for (const pose of s.poses) {
       const existing = app.pose(pose.id)
@@ -92,9 +101,25 @@ export default function ShareImport() {
                 </For>
               </div>
             </div>
-            <button class="btn primary big block" onClick={() => void add()}>
-              <Icon name="plus" size={18} /> Add to my practices
-            </button>
+            <Show
+              when={owned()}
+              fallback={
+                <button class="btn primary big block" onClick={() => void add()}>
+                  <Icon name="plus" size={18} /> Add to my practices
+                </button>
+              }
+            >
+              {p => (
+                <>
+                  <p class="small muted" style={{ 'text-align': 'center', margin: 0 }}>
+                    You already have this practice.
+                  </p>
+                  <button class="btn primary big block" onClick={() => navigate(`/practices/${p().id}`, { replace: true })}>
+                    Open it
+                  </button>
+                </>
+              )}
+            </Show>
             <p class="small muted" style={{ 'text-align': 'center' }}>
               It is saved on this device only. Nothing was sent to a server.
             </p>

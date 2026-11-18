@@ -1,4 +1,4 @@
-import { createMemo, createSignal, For, Show } from 'solid-js'
+import { createMemo, createSignal, For, onSettled, Show, untrack } from 'solid-js'
 import { useApp } from '../state/app'
 import { addDays, byDay, dayKey, parseDay, streaks, totals, type DayKey } from '../domain/stats'
 import { Icon } from '../ui/icons'
@@ -9,17 +9,27 @@ const FEELING = ['', 'Heavy', 'Restless', 'Steady', 'Calm', 'Bright']
 
 export default function Journal() {
   const app = useApp()
-  const today = dayKey(Date.now())
-  const [selected, setSelected] = createSignal<DayKey>(today)
+  // An installed app resumes without reloading, so today is checked again on return.
+  const [today, setToday] = createSignal(dayKey(Date.now()))
+  const [selected, setSelected] = createSignal<DayKey>(untrack(today))
+  onSettled(() => {
+    const check = () => {
+      const next = dayKey(Date.now())
+      if (selected() === today()) setSelected(next)
+      setToday(next)
+    }
+    document.addEventListener('visibilitychange', check)
+    return () => document.removeEventListener('visibilitychange', check)
+  })
   const [monthsShown, setMonthsShown] = createSignal(3)
   const [editing, setEditing] = createSignal<SessionLog | null>(null)
   const days = createMemo(() => byDay(app.logs()))
-  const s = createMemo(() => streaks(app.logs(), today))
+  const s = createMemo(() => streaks(app.logs(), today()))
   const t = createMemo(() => totals(app.logs()))
 
   const months = createMemo(() => {
     const out: { label: string; cells: (DayKey | null)[] }[] = []
-    const now = parseDay(today)
+    const now = parseDay(today())
     for (let m = 0; m < monthsShown(); m++) {
       const first = new Date(now.getFullYear(), now.getMonth() - m, 1)
       const lead = (first.getDay() - app.settings.weekStart + 7) % 7
@@ -39,10 +49,8 @@ export default function Journal() {
     return min >= goal * 1.5 ? 3 : min >= goal ? 2 : 1
   }
   const dayLogs = () => days().get(selected()) ?? []
-  const kindShare = () => {
-    const total = Math.max(1, t().byKind.yoga + t().byKind.meditation + t().byKind.breath)
-    return (['yoga', 'meditation', 'breath'] as const).map(k => ({ k, pct: (t().byKind[k] / total) * 100 }))
-  }
+  const KINDS = ['yoga', 'meditation', 'breath'] as const
+  const pct = (k: SessionLog['kind']) => (t().byKind[k] / Math.max(1, t().byKind.yoga + t().byKind.meditation + t().byKind.breath)) * 100
 
   return (
     <main class="page">
@@ -73,13 +81,13 @@ export default function Journal() {
       <Show when={t().minutes > 0}>
         <section class="card pad stack">
           <div class="bars">
-            <For each={kindShare()}>{x => <span style={{ width: `${x.pct}%`, background: x.k === 'yoga' ? 'var(--accent)' : x.k === 'meditation' ? 'var(--dusk)' : 'var(--tide)' }} />}</For>
+            <For each={KINDS}>{k => <span style={{ width: `${pct(k)}%`, background: k === 'yoga' ? 'var(--accent)' : k === 'meditation' ? 'var(--dusk)' : 'var(--tide)' }} />}</For>
           </div>
           <div class="row wrap small" style={{ gap: '16px' }}>
-            <For each={kindShare()}>
-              {x => (
+            <For each={KINDS}>
+              {k => (
                 <span>
-                  <span class={['tag', x.k]}>{KIND_LABEL[x.k]}</span> {t().byKind[x.k]} min
+                  <span class={['tag', k]}>{KIND_LABEL[k]}</span> {t().byKind[k]} min
                 </span>
               )}
             </For>
@@ -97,7 +105,7 @@ export default function Journal() {
             <span class="small muted">{minutes(dayLogs().reduce((sum, l) => sum + l.practicedSec, 0))}</span>
           </Show>
         </div>
-        <Show when={dayLogs().length} fallback={<p class="muted small" style={{ margin: 0 }}>{selected() === today ? 'Nothing yet today. Even five minutes counts.' : 'No practice recorded on this day.'}</p>}>
+        <Show when={dayLogs().length} fallback={<p class="muted small" style={{ margin: 0 }}>{selected() === today() ? 'Nothing yet today. Even five minutes counts.' : 'No practice recorded on this day.'}</p>}>
           <div class="list">
             <For each={dayLogs()}>
               {log => (
@@ -137,9 +145,9 @@ export default function Journal() {
                       {c => (
                         <button
                           data-level={level(c())}
-                          aria-current={c() === today ? 'date' : undefined}
+                          aria-current={c() === today() ? 'date' : undefined}
                           aria-pressed={pressed(c() === selected())}
-                          disabled={c() > today}
+                          disabled={c() > today()}
                           aria-label={`${parseDay(c()).toLocaleDateString()} ${level(c()) ? 'practised' : ''}`}
                           onClick={() => setSelected(c())}
                         >
@@ -167,8 +175,8 @@ export default function Journal() {
 
 function EditLog(props: { log: SessionLog; onDone: () => void }) {
   const app = useApp()
-  const [note, setNote] = createSignal(props.log.note ?? '')
-  const [feeling, setFeeling] = createSignal(props.log.feeling)
+  const [note, setNote] = createSignal(untrack(() => props.log.note ?? ''))
+  const [feeling, setFeeling] = createSignal(untrack(() => props.log.feeling))
   return (
     <div class="stack">
       <h2 class="display">{props.log.title}</h2>

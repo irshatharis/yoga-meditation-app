@@ -26,6 +26,8 @@ export type MediaRef =
   | { kind: 'image' | 'video'; blob: BlobId; mime: string; credit?: string }
   | { kind: 'link'; href: string; label?: string }
 
+export const mediaBlobs = (poses: readonly Pose[]) => new Set<string>(poses.flatMap(p => p.media.flatMap(m => (m.kind === 'link' ? [] : [m.blob]))))
+
 export type Pose = {
   id: PoseId
   name: string
