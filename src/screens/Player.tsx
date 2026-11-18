@@ -87,6 +87,7 @@ function Session(props: SessionProps) {
   let current = run.state
   let lastPos = -1
   let lastIndex = -1
+  // Once ended, a run is never saved for resuming again, whether or not it made the journal.
   let ended = false
 
   const [state, setState] = createSignal<PlayerState>(current)
@@ -606,14 +607,11 @@ function Summary(props: { log: SessionLog; practice: Practice; onLog: (log: Sess
             </For>
           </div>
           <textarea class="input" placeholder="A note for your journal (optional)" value={note()} onInput={e => setNote(e.currentTarget.value)} />
-          <a
-            class="btn primary big block"
-            href="/journal"
-            onClick={() => save()}
-          >
+          {/* The finished run's page is replaced, so going back does not open it again. */}
+          <a class="btn primary big block" href="/journal" replace onClick={() => save()}>
             Save to journal
           </a>
-          <a class="btn ghost block" href="/" onClick={() => save()}>
+          <a class="btn ghost block" href="/" replace onClick={() => save()}>
             Done
           </a>
         </div>
