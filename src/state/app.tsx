@@ -1,4 +1,4 @@
-import { createContext, createEffect, createMemo, createSignal, createStore, deep, snapshot, untrack, useContext } from 'solid-js'
+import { createContext, createEffect, createMemo, createSignal, createStore, deep, reconcile, snapshot, untrack, useContext } from 'solid-js'
 import type { JSX } from '@solidjs/web'
 import { POSES } from '../content/poses'
 import { PRACTICES } from '../content/practices'
@@ -62,10 +62,16 @@ function createApp(initial: Loaded) {
   const practices = createMemo(() => [...mine.practices.slice().sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0)), ...PRACTICES])
   const practiceMap = createMemo(() => new Map<PracticeId, Practice>(practices().map(p => [p.id, p])))
 
+  // Records handed in are often built from store proxies, which IndexedDB
+  // cannot clone, so every write takes a plain snapshot first.
   const upsert = <T extends { id: string }>(list: T[], item: T) => {
     const i = list.findIndex(x => x.id === item.id)
     if (i === -1) list.unshift(item)
-    else list[i] = item
+    else reconcile(item, 'id')(list[i])
+  }
+  const drop = <T extends { id: string }>(list: T[], id: string) => {
+    const i = list.findIndex(x => x.id === id)
+    if (i !== -1) list.splice(i, 1)
   }
 
   return {
@@ -96,35 +102,35 @@ function createApp(initial: Loaded) {
       queueMicrotask(() => void db.setKV('favorites', snapshot(mine.favorites)))
     },
     async savePose(pose: Pose) {
-      setMine(s => upsert(s.poses, pose))
-      await db.put('poses', pose)
+      const plain = snapshot(pose)
+      setMine(s => upsert(s.poses, plain))
+      await db.put('poses', plain)
     },
     async deletePose(id: PoseId) {
-      setMine(s => void (s.poses = s.poses.filter(p => p.id !== id)))
+      setMine(s => drop(s.poses, id))
       await db.remove('poses', id)
     },
     async savePractice(practice: Practice) {
-      const stamped = { ...practice, updatedAt: Date.now() }
+      const stamped = { ...snapshot(practice), updatedAt: Date.now() }
       setMine(s => upsert(s.practices, stamped))
       await db.put('practices', stamped)
     },
     async deletePractice(id: PracticeId) {
-      setMine(s => void (s.practices = s.practices.filter(p => p.id !== id)))
+      setMine(s => drop(s.practices, id))
       await db.remove('practices', id)
     },
     async addLog(log: SessionLog) {
-      setHistory(s => void s.logs.push(log))
-      await db.put('logs', log)
+      const plain = snapshot(log)
+      setHistory(s => void s.logs.push(plain))
+      await db.put('logs', plain)
     },
     async updateLog(log: SessionLog) {
-      setHistory(s => {
-        const i = s.logs.findIndex(l => l.id === log.id)
-        if (i !== -1) s.logs[i] = log
-      })
-      await db.put('logs', log)
+      const plain = snapshot(log)
+      setHistory(s => upsert(s.logs, plain))
+      await db.put('logs', plain)
     },
     async deleteLog(id: string) {
-      setHistory(s => void (s.logs = s.logs.filter(l => l.id !== id)))
+      setHistory(s => drop(s.logs, id))
       await db.remove('logs', id)
     },
     async importRecords(records: { poses: Pose[]; practices: Practice[]; logs: SessionLog[]; blobs: db.StoredBlob[]; settings?: Settings }) {
