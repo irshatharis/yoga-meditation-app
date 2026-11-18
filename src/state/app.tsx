@@ -58,6 +58,18 @@ function createApp(initial: Loaded) {
     { defer: true }
   )
 
+  // Settings and favorites are written whole, so another open tab would write
+  // its stale copy over a newer change. Tabs tell each other instead.
+  type Sync = { settings: Settings } | { favorites: PracticeId[] } | { erased: true }
+  const channel = typeof BroadcastChannel === 'function' ? new BroadcastChannel('still') : null
+  const tell = (msg: Sync) => channel?.postMessage(msg)
+  channel?.addEventListener('message', (e: MessageEvent<Sync>) => {
+    const msg = e.data
+    if ('erased' in msg) location.reload()
+    else if ('settings' in msg) setSettings(s => void reconcile(msg.settings, 'id')(s))
+    else setMine(s => void s.favorites.splice(0, s.favorites.length, ...msg.favorites))
+  })
+
   const poses = createMemo(() => new Map<PoseId, Pose>([...POSES, ...mine.poses].map(p => [p.id, p])))
   const practices = createMemo(() => [...mine.practices.slice().sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0)), ...PRACTICES])
   const practiceMap = createMemo(() => new Map<PracticeId, Practice>(practices().map(p => [p.id, p])))
@@ -84,6 +96,7 @@ function createApp(initial: Loaded) {
     settings,
     updateSettings(fn: (draft: Settings) => void) {
       setSettings(fn)
+      queueMicrotask(() => tell({ settings: snapshot(settings) }))
     },
     poses,
     practices,
@@ -105,7 +118,11 @@ function createApp(initial: Loaded) {
         if (i === -1) s.favorites.push(id)
         else s.favorites.splice(i, 1)
       })
-      queueMicrotask(() => void db.setKV('favorites', snapshot(mine.favorites)))
+      queueMicrotask(() => {
+        const favorites = snapshot(mine.favorites)
+        void db.setKV('favorites', favorites)
+        tell({ favorites })
+      })
     },
     async savePose(pose: Pose) {
       const plain = snapshot(pose)
@@ -154,6 +171,7 @@ function createApp(initial: Loaded) {
       if (records.settings) {
         const next = records.settings
         setSettings(() => next)
+        tell({ settings: next })
       }
       await Promise.all([
         db.putMany('poses', records.poses),
@@ -164,6 +182,7 @@ function createApp(initial: Loaded) {
     },
     async eraseEverything() {
       await db.clearAll()
+      tell({ erased: true })
       location.replace('/')
     }
   }
