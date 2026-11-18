@@ -1,4 +1,4 @@
-import { createMemo, createSignal, For, Show, untrack } from 'solid-js'
+import { createMemo, For, Show, untrack } from 'solid-js'
 import { useSearchParams } from '@solidjs/router'
 import { useApp } from '../state/app'
 import { estimateSec } from '../domain/timeline'
@@ -26,8 +26,11 @@ const LENGTHS: { value: Length; label: string; test: (min: number) => boolean }[
 export default function Practices() {
   const app = useApp()
   const [search, setSearch] = useSearchParams()
-  const [query, setQuery] = createSignal('')
-  const [length, setLength] = createSignal<Length>('any')
+  // Search and filters live in the URL so they are still there after opening a result and coming back.
+  const query = () => (typeof search.q === 'string' ? search.q : '')
+  const setQuery = (q: string) => setSearch({ q: q || undefined }, { replace: true })
+  const length = () => LENGTHS.find(l => l.value === search.len)?.value ?? 'any'
+  const setLength = (len: Length) => setSearch({ len: len === 'any' ? undefined : len }, { replace: true })
   const filter = () => ((search.kind as Filter) || 'all') as Filter
 
   const list = createMemo(() => {
