@@ -31,8 +31,8 @@ export function vibrate(settings: Settings, pattern: number | number[]) {
 export type NowPlaying = { title: string; practice: string; playing: boolean }
 
 // Shows the current step on the lock screen. It registers no play or pause
-// handlers: the system also sends those when speech or another app takes the
-// audio focus, and that paused practices nobody had touched.
+// handlers, so only the buttons in the app start and stop a practice. The page
+// cannot tell a person's lock-screen tap from one the system sends on its own.
 export function showNowPlaying(info: NowPlaying | null) {
   if (!('mediaSession' in navigator)) return
   const ms = navigator.mediaSession
