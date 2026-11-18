@@ -102,6 +102,26 @@ test('dismissing the share sheet does not copy the link anyway', async ({ page }
   await expect(page.locator('.toast')).toHaveCount(0)
 })
 
+test('search and filters are still there after looking at a result', async ({ page }) => {
+  await page.goto('/practices')
+  await page.getByLabel('Search practices').fill('hip')
+  await page.getByRole('button', { name: 'Over 25 min' }).click()
+  await page.locator('.pcard').first().click()
+  await expect(page).toHaveURL(/\/practices\/[a-z-]+$/)
+  await page.goBack()
+  await expect(page.getByLabel('Search practices')).toHaveValue('hip')
+  await expect(page.getByRole('button', { name: 'Over 25 min' })).toHaveAttribute('aria-pressed', 'true')
+
+  await page.goto('/poses')
+  await page.getByRole('button', { name: 'Balance' }).click()
+  await page.getByLabel('Search poses').fill('tree')
+  await page.locator('.pose-tile').first().click()
+  await expect(page).toHaveURL(/\/poses\/tree$/)
+  await page.goBack()
+  await expect(page.getByLabel('Search poses')).toHaveValue('tree')
+  await expect(page.getByRole('button', { name: 'Balance' })).toHaveAttribute('aria-pressed', 'true')
+})
+
 test('cancelling a copy of a built-in practice leaves nothing behind', async ({ page }) => {
   await page.goto('/practices')
   await page.goto('/practices/desk-break')
