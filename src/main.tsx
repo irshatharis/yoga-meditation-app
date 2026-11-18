@@ -8,6 +8,8 @@ import { requestPersistence } from './store/db'
 import { Icon } from './ui/icons'
 import { Toaster } from './ui/kit'
 import { registerUpdates } from './pwa'
+import { pageMeta, SITE_URL } from './seo'
+import { estimateSec } from './domain/timeline'
 import Today from './screens/Today'
 import Practices from './screens/Practices'
 import PracticeDetail from './screens/PracticeDetail'
@@ -61,6 +63,38 @@ function Appearance() {
   return null
 }
 
+function setHead(selector: string, attr: string, value: string) {
+  document.head.querySelector(selector)?.setAttribute(attr, value)
+}
+
+function Head() {
+  const app = useApp()
+  const location = useLocation()
+  createEffect(
+    () => ({
+      path: location.pathname,
+      meta: pageMeta(location.pathname, {
+        practice: app.practice,
+        pose: app.pose,
+        path: id => app.paths.find(p => p.id === id),
+        minutes: p => Math.max(1, Math.round(estimateSec(p, app.poses(), app.settings) / 60))
+      })
+    }),
+    ({ path, meta }) => {
+      document.title = meta.title
+      setHead('meta[name="description"]', 'content', meta.description)
+      setHead('link[rel="canonical"]', 'href', SITE_URL + path)
+      let robots = document.head.querySelector<HTMLMetaElement>('meta[name="robots"]')
+      if (meta.index) robots?.remove()
+      else {
+        robots ??= document.head.appendChild(Object.assign(document.createElement('meta'), { name: 'robots' }))
+        robots.content = 'noindex'
+      }
+    }
+  )
+  return null
+}
+
 function TabBar() {
   return (
     <nav class="tabbar" aria-label="Main">
@@ -89,6 +123,7 @@ function Shell(props: { children: JSX.Element }) {
   return (
     <>
       <Appearance />
+      <Head />
       <div class="shell">{props.children}</div>
       <Show when={!location.pathname.startsWith('/play')}>
         <TabBar />

@@ -3,25 +3,72 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>still. Free yoga, breathwork and meditation app</title>
+    <meta name="description" content="Guided yoga, breathwork and meditation that works offline. Free, private and ad free, with no account. Clear pose figures, gentle pacing, your own practices and a journal." />
+    <link rel="canonical" href="https://still.irshath.com/" />
     <meta name="theme-color" content="#f5efe5" />
-    <meta name="description" content="A free, private, offline place for yoga, breathwork and meditation. Guided practices, gentle pacing, your own journal. No account needed." />
+    <meta name="application-name" content="still." />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="still." />
-    <meta property="og:title" content="still. Yoga, breath and meditation" />
-    <meta property="og:description" content="A free, private, offline place for yoga, breathwork and meditation." />
-    <meta property="og:image" content="https://still.irshath.com/icons/icon-512.png" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="still." />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:url" content="https://still.irshath.com/" />
+    <meta property="og:title" content="still. Free yoga, breathwork and meditation app" />
+    <meta property="og:description" content="Guided yoga, breathwork and meditation that works offline. Free, private and ad free, with no account. Clear pose figures, gentle pacing, your own practices and a journal." />
+    <meta property="og:image" content="https://still.irshath.com/og.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="still. on a phone. A guided yoga practice with a pose figure, next to the words yoga, breathwork and meditation, free and offline." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="still. Free yoga, breathwork and meditation app" />
+    <meta name="twitter:description" content="Guided yoga, breathwork and meditation that works offline. Free, private and ad free, with no account. Clear pose figures, gentle pacing, your own practices and a journal." />
+    <meta name="twitter:image" content="https://still.irshath.com/og.jpg" />
+    <meta name="twitter:image:alt" content="still. on a phone. A guided yoga practice with a pose figure, next to the words yoga, breathwork and meditation, free and offline." />
     <link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png" />
     <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-    <title>still. Yoga, breath and meditation</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "still.",
+        "alternateName": "still. Yoga, breath and meditation",
+        "url": "https://still.irshath.com/",
+        "description": "Guided yoga, breathwork and meditation that works offline. Free, private and ad free, with no account.",
+        "applicationCategory": "HealthApplication",
+        "applicationSubCategory": "Yoga and meditation",
+        "operatingSystem": "Any",
+        "browserRequirements": "Requires JavaScript. Works offline after the first visit.",
+        "inLanguage": "en",
+        "isAccessibleForFree": true,
+        "image": "https://still.irshath.com/og.jpg",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "featureList": [
+          "Guided yoga flows with animated pose figures",
+          "Breathwork with a visual pacer",
+          "Guided and timer meditations",
+          "Build your own practices and poses",
+          "Journal, streaks and goals",
+          "Works offline, no account, no tracking"
+        ]
+      }
+    </script>
     <style>
-      html { background: #f5efe5; }
-      @media (prefers-color-scheme: dark) { html { background: #15130f; } }
+      html { background: #f5efe5; color: #2a241d; }
+      @media (prefers-color-scheme: dark) { html { background: #15130f; color: #ece4d6; } }
       .boot { min-height: 100dvh; display: grid; place-items: center; }
       .boot span { width: 56px; height: 56px; border-radius: 50%; background: #c0603f; opacity: .85; animation: boot 2.4s ease-in-out infinite; }
       @keyframes boot { 50% { transform: scale(1.15); opacity: .55; } }
+      /* Prerendered text for crawlers and slow connections. It waits two seconds so a normal boot never flashes it. */
+      .boot-copy { position: absolute; left: 0; right: 0; max-width: 36em; margin: 0 auto; padding: 32px 20px 64px; font: 17px/1.55 Georgia, serif; opacity: 0; animation: show .4s 2s forwards; }
+      .boot-copy ~ .boot { animation: gone 0s 2s forwards; }
+      .boot-copy a { color: inherit; }
+      @keyframes show { to { opacity: 1; } }
+      @keyframes gone { to { visibility: hidden; } }
     </style>
   </head>
   <body>

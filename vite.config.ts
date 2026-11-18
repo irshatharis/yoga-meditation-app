@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import solid from '@solidjs/vite-plugin'
 import { VitePWA } from 'vite-plugin-pwa'
 import { cloudflare } from '@cloudflare/vite-plugin'
+import { seo } from './scripts/seo-plugin'
 
 import pkg from './package.json' with { type: 'json' }
 
@@ -9,6 +10,7 @@ export default defineConfig({
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   plugins: [
     solid(),
+    seo(),
     VitePWA({
       registerType: 'prompt',
       injectRegister: false,
@@ -37,7 +39,9 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,webp,woff2,webmanifest,json,mp3,mp4,webm}'],
+        // The prerendered pages are for crawlers. Offline, every route boots from index.html.
+        globPatterns: ['index.html', '**/*.{js,css,svg,png,webp,woff2,webmanifest,mp3,mp4,webm}'],
+        globIgnores: ['og.jpg'],
         navigateFallback: '/index.html',
         cleanupOutdatedCaches: true,
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024
