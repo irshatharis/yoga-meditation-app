@@ -1,12 +1,12 @@
 import { createMemo, createSignal, For, Match, Show, Switch as SwitchFlow, untrack, snapshot } from 'solid-js'
-import { useNavigate, useParams } from '@solidjs/router'
+import { useNavigate, useParams, useSearchParams } from '@solidjs/router'
 import { useApp } from '../state/app'
 import { Figure } from '../figure/Figure'
 import { estimateSec } from '../domain/timeline'
 import type { BreathPattern, Practice, PracticeId, PracticeItem, PoseId } from '../domain/types'
 import { newId } from '../store/transfer'
 import { Icon } from '../ui/icons'
-import { Segmented, Sheet, Stepper, Switch, clock, minutes, toast } from '../ui/kit'
+import { Segmented, Sheet, Stepper, Switch, clock, minutes, toast, useBack } from '../ui/kit'
 
 const BREATHS: { label: string; pattern: BreathPattern; cycles: number }[] = [
   { label: 'Box breathing', pattern: { inhale: 4, holdIn: 4, exhale: 4, holdOut: 4 }, cycles: 8 },
@@ -19,12 +19,18 @@ export default function Builder() {
   const app = useApp()
   const params = useParams()
   const navigate = useNavigate()
-  const source = untrack(() => (params.id ? app.practice(params.id) : undefined))
-  const editing = source && source.origin !== 'builtin' ? source : undefined
+  const [search] = useSearchParams()
+  // `?from=` starts a copy. Built-in practices are never edited in place, so they copy too.
+  const { source, editing } = untrack(() => {
+    const id = params.id ?? search.from
+    const found = typeof id === 'string' ? app.practice(id) : undefined
+    const source = found && snapshot(found)
+    return { source, editing: source && params.id && source.origin !== 'builtin' ? source : undefined }
+  })
   const [title, setTitle] = createSignal(editing?.title ?? (source ? `${source.title} (my version)` : ''))
   const [summary, setSummary] = createSignal(editing?.summary ?? source?.summary ?? '')
   const [kind, setKind] = createSignal<Practice['kind']>(source?.kind ?? 'yoga')
-  const [items, setItems] = createSignal<PracticeItem[]>(structuredClone(snapshot(source?.items ?? [])))
+  const [items, setItems] = createSignal<PracticeItem[]>(structuredClone(source?.items ?? []))
   const [ownPacing, setOwnPacing] = createSignal(source?.pacing?.prepareSec !== undefined)
   const [prepare, setPrepare] = createSignal(source?.pacing?.prepareSec ?? untrack(() => app.settings.pacing.prepareSec))
   const [adding, setAdding] = createSignal(false)
@@ -42,6 +48,7 @@ export default function Builder() {
     pacing: ownPacing() ? { prepareSec: prepare() } : undefined,
     origin: 'mine'
   }))
+  const cancel = useBack(() => (source ? `/practices/${source.id}` : '/practices'))
   const total = createMemo(() => estimateSec(draft(), app.poses(), app.settings))
 
   const update = (i: number, fn: (item: PracticeItem) => PracticeItem) => setItems(xs => xs.map((x, j) => (j === i ? fn(x) : x)))
@@ -101,7 +108,7 @@ export default function Builder() {
   return (
     <main class="page">
       <header class="topbar">
-        <button class="icon-btn" aria-label="Cancel" onClick={() => history.back()}>
+        <button class="icon-btn" aria-label="Cancel" onClick={cancel}>
           <Icon name="close" />
         </button>
         <strong>{editing ? 'Edit practice' : 'New practice'}</strong>

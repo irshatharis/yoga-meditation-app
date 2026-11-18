@@ -1,4 +1,4 @@
-import { createMemo, createSignal, For, Show, untrack } from 'solid-js'
+import { createMemo, createSignal, For, Show, snapshot, untrack } from 'solid-js'
 import { useNavigate, useParams } from '@solidjs/router'
 import { useApp } from '../state/app'
 import { Figure } from '../figure/Figure'
@@ -6,7 +6,7 @@ import { POSES } from '../content/poses'
 import { FAMILIES, FOCUSES, type Family, type Focus, type Level, type Pose, type PoseId } from '../domain/types'
 import { newId } from '../store/transfer'
 import { Icon } from '../ui/icons'
-import { Segmented, Switch, toast, pressed } from '../ui/kit'
+import { Segmented, Switch, toast, pressed, useBack } from '../ui/kit'
 import { FAMILY_LABEL } from './Poses'
 import { MediaGallery, addMediaFromFile } from './media'
 
@@ -20,7 +20,11 @@ export default function PoseEditor() {
   const app = useApp()
   const params = useParams()
   const navigate = useNavigate()
-  const existing = untrack(() => (params.id ? app.pose(params.id) : undefined))
+  const existing = untrack(() => {
+    const found = params.id ? app.pose(params.id) : undefined
+    return found && snapshot(found)
+  })
+  const cancel = useBack(() => (existing ? `/poses/${existing.id}` : '/poses'))
   const [name, setName] = createSignal(existing?.name ?? '')
   const [sanskrit, setSanskrit] = createSignal(existing?.sanskrit ?? '')
   const [family, setFamily] = createSignal<Family>(existing?.family ?? 'standing')
@@ -72,7 +76,7 @@ export default function PoseEditor() {
   return (
     <main class="page">
       <header class="topbar">
-        <button class="icon-btn" aria-label="Cancel" onClick={() => history.back()}>
+        <button class="icon-btn" aria-label="Cancel" onClick={cancel}>
           <Icon name="close" />
         </button>
         <strong>{existing ? 'Edit pose' : 'New pose'}</strong>

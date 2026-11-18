@@ -1,6 +1,7 @@
 import { createMemo, createSignal, For, Show } from 'solid-js'
 import type { JSX } from '@solidjs/web'
 import { Portal } from '@solidjs/web'
+import { useNavigate } from '@solidjs/router'
 import { Figure } from '../figure/Figure'
 import { bounds, solve, type FigurePose } from '../figure/skeleton'
 import type { Practice } from '../domain/types'
@@ -23,6 +24,15 @@ export const clock = (sec: number) => {
   const m = Math.floor((s % 3600) / 60)
   const r = s % 60
   return h ? `${h}:${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}` : `${m}:${String(r).padStart(2, '0')}`
+}
+
+// The router stamps every history entry with its depth. An entry deeper than
+// the one the app opened on means there is a page of ours to go back to.
+const openedAt: number = history.state?._depth ?? history.length - 1
+
+export function useBack(fallback: () => string) {
+  const navigate = useNavigate()
+  return () => ((history.state?._depth ?? openedAt) > openedAt ? history.back() : navigate(fallback(), { replace: true }))
 }
 
 export const KIND_LABEL: Record<Practice['kind'], string> = { yoga: 'Yoga', meditation: 'Meditation', breath: 'Breathwork' }

@@ -1,13 +1,13 @@
-import { createMemo, createSignal, For, Show, untrack, snapshot } from 'solid-js'
+import { createMemo, createSignal, For, Show, untrack } from 'solid-js'
 import { useNavigate, useParams, useSearchParams } from '@solidjs/router'
 import { useApp } from '../state/app'
 import { compile, type Segment } from '../domain/timeline'
 import { Figure } from '../figure/Figure'
 import { primeForPractice } from '../engine/session'
-import { encodeShare, newId } from '../store/transfer'
+import { encodeShare } from '../store/transfer'
 import { Icon } from '../ui/icons'
-import { KIND_LABEL, PracticeArt, Segmented, Sheet, clock, minutes, toast, pressed } from '../ui/kit'
-import type { Pose, Practice, PracticeId } from '../domain/types'
+import { KIND_LABEL, PracticeArt, Segmented, Sheet, clock, minutes, toast, pressed, useBack } from '../ui/kit'
+import type { Pose, Practice } from '../domain/types'
 
 const LENGTH_CHOICES = [5, 10, 15, 20, 30, 45, 60]
 const SCALES = [
@@ -120,16 +120,13 @@ function Detail(props: { practice: Practice }) {
     toast('Link copied. Anyone with it can add this practice.')
   }
 
-  const duplicate = async () => {
-    const copy: Practice = { ...structuredClone(snapshot(props.practice)), id: newId('practice') as PracticeId, title: `${props.practice.title} (my version)`, origin: 'mine' }
-    await app.savePractice(copy)
-    navigate(`/practices/${copy.id}/edit`)
-  }
+  const duplicate = () => navigate(`/practices/new?from=${props.practice.id}`)
+  const back = useBack(() => '/practices')
 
   return (
     <main class="page">
       <header class="topbar">
-        <button class="icon-btn" aria-label="Back" onClick={() => history.length > 1 ? history.back() : navigate('/practices')}>
+        <button class="icon-btn" aria-label="Back" onClick={back}>
           <Icon name="back" />
         </button>
         <div class="row" style={{ gap: '4px' }}>
@@ -243,7 +240,7 @@ function Detail(props: { practice: Practice }) {
         <Show
           when={mine()}
           fallback={
-            <button class="btn" onClick={() => void duplicate()}>
+            <button class="btn" onClick={duplicate}>
               <Icon name="copy" size={16} /> Make it yours
             </button>
           }
@@ -251,7 +248,7 @@ function Detail(props: { practice: Practice }) {
           <a class="btn" href={`/practices/${props.practice.id}/edit`}>
             <Icon name="edit" size={16} /> Edit
           </a>
-          <button class="btn" onClick={() => void duplicate()}>
+          <button class="btn" onClick={duplicate}>
             <Icon name="copy" size={16} /> Duplicate
           </button>
           <button class="btn danger" onClick={() => setConfirmDelete(true)}>
