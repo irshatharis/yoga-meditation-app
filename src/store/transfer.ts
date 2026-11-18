@@ -142,7 +142,7 @@ export type MergePlan = {
 }
 
 // Missing and undefined fields count as equal, as they do after a JSON round trip.
-const same = (a: unknown, b: unknown): boolean => {
+export const same = (a: unknown, b: unknown): boolean => {
   if (a === b) return true
   if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null || Array.isArray(a) !== Array.isArray(b)) return false
   const x = a as Record<string, unknown>

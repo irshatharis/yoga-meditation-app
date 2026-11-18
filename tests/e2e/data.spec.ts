@@ -33,7 +33,7 @@ test('export, erase and import bring everything back', async ({ page }) => {
   await expect(page.getByText('Round trip flow')).toBeVisible()
 })
 
-test('a share link adds the practice on another device', async ({ page, browser }) => {
+test('a share link of a built-in practice opens the copy the friend already has', async ({ page, browser }) => {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'share', { configurable: true, value: async (d: { url: string }) => void ((window as unknown as { __shared: string }).__shared = d.url) })
   })
@@ -46,8 +46,9 @@ test('a share link adds the practice on another device', async ({ page, browser 
   const friend = await other.newPage()
   await friend.goto(new URL(url).pathname + new URL(url).hash)
   await expect(friend.getByText('Someone shared a practice with you')).toBeVisible()
-  await friend.getByRole('button', { name: 'Add to my practices' }).click()
-  await expect(friend).toHaveURL(/\/practices\//)
+  await expect(friend.getByText('You already have this practice.')).toBeVisible()
+  await friend.getByRole('button', { name: 'Open it' }).click()
+  await expect(friend).toHaveURL('/practices/desk-break')
   await expect(friend.locator('h1')).toContainText('Desk break')
   await other.close()
 })
