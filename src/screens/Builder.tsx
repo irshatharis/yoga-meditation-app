@@ -240,24 +240,20 @@ function ItemEditor(props: { item: PracticeItem; onChange: (fn: (item: PracticeI
                   <span class="thumb">
                     <Show when={pose()?.figure}>{f => <Figure pose={f()} mat={false} title="" />}</Show>
                   </span>
-                  <div class="grow">
-                    <strong>{pose()?.name ?? 'Missing pose'}</strong>
-                    <Show when={pose()?.sided}>
-                      <div style={{ 'margin-top': '6px' }}>
-                        <Segmented
-                          label="Sides"
-                          value={item().sides ?? 'both'}
-                          options={[
-                            { value: 'both', label: 'Both' },
-                            { value: 'right', label: 'Right' },
-                            { value: 'left', label: 'Left' }
-                          ]}
-                          onChange={v => props.onChange(x => ({ ...x, sides: v }) as PracticeItem)}
-                        />
-                      </div>
-                    </Show>
-                  </div>
+                  <strong class="grow">{pose()?.name ?? 'Missing pose'}</strong>
                 </div>
+                <Show when={pose()?.sided}>
+                  <Segmented
+                    label="Sides"
+                    value={item().sides ?? 'both'}
+                    options={[
+                      { value: 'both', label: 'Both' },
+                      { value: 'right', label: 'Right' },
+                      { value: 'left', label: 'Left' }
+                    ]}
+                    onChange={v => props.onChange(x => ({ ...x, sides: v }) as PracticeItem)}
+                  />
+                </Show>
                 <Stepper label="hold" value={item().holdSec} min={5} max={900} step={5} format={clock} onChange={v => props.onChange(x => ({ ...x, holdSec: v }) as PracticeItem)} />
               </>
             )

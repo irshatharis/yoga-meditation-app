@@ -95,7 +95,7 @@ export default function PoseEditor() {
           <input class="input" value={sanskrit()} onInput={e => setSanskrit(e.currentTarget.value)} />
         </label>
         <div class="row wrap">
-          <label class="field grow">
+          <label class="field grow" style={{ 'min-width': '9rem' }}>
             <span>Family</span>
             <select class="input" value={family()} onChange={e => setFamily(e.currentTarget.value as Family)}>
               <For each={FAMILIES}>{f => <option value={f}>{FAMILY_LABEL[f]}</option>}</For>
