@@ -6,7 +6,7 @@ import { advance, back, dueCues, extend, locate, next, pause, play, position, st
 import { compile, type Segment, type Timeline } from '../domain/timeline'
 import type { PathId, Practice, SessionLog } from '../domain/types'
 import { createKeepAwake, type AwakeState } from '../engine/awake'
-import { resumeAudio, setAmbient, setKeepAlive } from '../engine/audio'
+import { resumeAudio, setAmbient, setKeepAlive, silence } from '../engine/audio'
 import { mediaSession, playCue, primeForPractice, recentlyPrimed, stopVoice, vibrate } from '../engine/session'
 import { useApp, type ActiveSession } from '../state/app'
 import { Icon } from '../ui/icons'
@@ -108,7 +108,8 @@ function Session(props: SessionProps) {
     const practicedSec = Math.round(position(current, t) / 1000)
     keepAwake.off()
     setKeepAlive(false)
-    setAmbient('none', 0)
+    silence()
+    media.dispose()
     app.saveActive(null)
     if (!completed && practicedSec < 60) {
       stopVoice()
@@ -163,13 +164,15 @@ function Session(props: SessionProps) {
   }
 
   function toggle(want?: boolean) {
+    // Once the practice has ended, the lock-screen play button must not restart it.
+    if (log) return
     const t = Date.now()
     const playing = current.phase.status === 'running'
     if (want === playing) return
     if (playing) {
       commit(pause(current, t))
       stopVoice()
-      setAmbient('none', 0)
+      silence()
       keepAwake.off()
       persist()
     } else {
@@ -272,7 +275,7 @@ function Session(props: SessionProps) {
       window.removeEventListener('keydown', onKey)
       if (current.phase.status !== 'done' && !log) persist()
       stopVoice()
-      setAmbient('none', 0)
+      silence()
       setKeepAlive(false)
       keepAwake.dispose()
       media.dispose()

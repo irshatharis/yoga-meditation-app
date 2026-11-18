@@ -45,6 +45,7 @@ export function mediaSession(handlers: Handlers) {
       // Unsupported action on this platform.
     }
   }
+  let disposed = false
   set('play', handlers.play)
   set('pause', handlers.pause)
   set('nexttrack', handlers.next)
@@ -52,6 +53,7 @@ export function mediaSession(handlers: Handlers) {
   set('stop', handlers.stop)
   return {
     update(info: { title: string; practice: string; playing: boolean; posSec: number; totalSec: number }) {
+      if (disposed) return
       ms.metadata = new MediaMetadata({
         title: info.title,
         artist: info.practice,
@@ -69,6 +71,7 @@ export function mediaSession(handlers: Handlers) {
       }
     },
     dispose() {
+      disposed = true
       for (const a of ['play', 'pause', 'nexttrack', 'previoustrack', 'stop'] as const) set(a, null)
       ms.metadata = null
       ms.playbackState = 'none'

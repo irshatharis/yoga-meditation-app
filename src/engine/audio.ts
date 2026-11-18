@@ -5,6 +5,8 @@ import type { Ambient, BellSound } from '../domain/types'
 // made the old bell go silent after the screen locked.
 let ctx: AudioContext | null = null
 let master: GainNode | null = null
+// Bells and ticks play through this bus so `silence` can cut whatever is still ringing.
+let fx: GainNode | null = null
 let keepAlive: HTMLAudioElement | null = null
 
 type AudioSessionNavigator = Navigator & { audioSession?: { type: string } }
@@ -43,6 +45,8 @@ export function unlockAudio() {
     ctx = new AudioContext({ latencyHint: 'playback' })
     master = ctx.createGain()
     master.connect(ctx.destination)
+    fx = ctx.createGain()
+    fx.connect(master)
   }
   if (ctx.state === 'suspended') void ctx.resume()
   // Plays even with the iPhone silent switch on, like any meditation app.
@@ -76,12 +80,12 @@ export function setKeepAlive(on: boolean) {
 }
 
 function playBuffer(buffer: AudioBuffer, volume: number, when: number) {
-  if (!ctx || !master) return
+  if (!ctx || !fx) return
   const src = ctx.createBufferSource()
   src.buffer = buffer
   const g = ctx.createGain()
   g.gain.value = volume
-  src.connect(g).connect(master)
+  src.connect(g).connect(fx)
   src.start(ctx.currentTime + when)
 }
 
@@ -95,11 +99,11 @@ export function bell(kind: BellSound, volume: number, when = 0) {
 }
 
 function synthBell(volume: number, when: number) {
-  if (!ctx || !master) return
+  if (!ctx || !fx) return
   const t0 = ctx.currentTime + when
   const out = ctx.createGain()
   out.gain.value = volume * 0.3
-  out.connect(master)
+  out.connect(fx)
   const partials: [number, number, number][] = [[1, 1, 6], [2.71, 0.45, 4.5], [5.18, 0.2, 3], [8.33, 0.07, 2]]
   for (const [ratio, gain, decay] of partials) {
     for (const detune of [-3, 3]) {
@@ -118,7 +122,7 @@ function synthBell(volume: number, when: number) {
 }
 
 export function tick(volume: number) {
-  if (!ctx || !master || volume <= 0) return
+  if (!ctx || !fx || volume <= 0) return
   const t0 = ctx.currentTime
   const osc = ctx.createOscillator()
   const g = ctx.createGain()
@@ -126,9 +130,23 @@ export function tick(volume: number) {
   g.gain.setValueAtTime(0.0001, t0)
   g.gain.exponentialRampToValueAtTime(0.1 * volume, t0 + 0.008)
   g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.14)
-  osc.connect(g).connect(master)
+  osc.connect(g).connect(fx)
   osc.start(t0)
   osc.stop(t0 + 0.16)
+}
+
+// Ends every sound within about half a second: ringing bells, scheduled
+// bells and the ambient loop. A struck bowl otherwise rings for 26 seconds.
+export function silence() {
+  if (!ctx || !master) return
+  const old = fx
+  fx = ctx.createGain()
+  fx.connect(master)
+  if (old) {
+    old.gain.setTargetAtTime(0, ctx.currentTime, 0.08)
+    setTimeout(() => old.disconnect(), 600)
+  }
+  setAmbient('none', 0, 0.1)
 }
 
 export function endChime(kind: BellSound, volume: number) {
@@ -194,13 +212,16 @@ function deepNoise(out: GainNode) {
   return () => src.stop()
 }
 
-export function setAmbient(kind: Ambient, volume: number) {
+// `fade` is the time constant of the fade-out. The loop is cut after five of
+// them, when it is below one percent of its volume.
+export function setAmbient(kind: Ambient, volume: number, fade = 0.7) {
   if (!ctx || !master) return
   const context = ctx
   if (ambient && (ambient.kind !== kind || kind === 'none')) {
     const old = ambient
-    old.gain.gain.setTargetAtTime(0, context.currentTime, 0.7)
-    setTimeout(old.stop, 3500)
+    old.gain.gain.cancelScheduledValues(context.currentTime)
+    old.gain.gain.setTargetAtTime(0, context.currentTime, fade)
+    setTimeout(() => old.stop(), fade * 5000)
     ambient = null
   }
   if (kind === 'none') return
