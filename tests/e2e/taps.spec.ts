@@ -68,10 +68,10 @@ test('a quick double tap on Save makes one pose', async ({ page }) => {
   await expect(page.locator('.pose-tile')).toHaveCount(1)
 })
 
-test('Back in settings stays in the app after opening settings straight from a link', async ({ page }) => {
+test('Back in settings stays in the app after opening settings straight from a link', async ({ page, baseURL }) => {
   await page.goto('/settings')
   await page.getByRole('button', { name: 'Back', exact: true }).click()
-  await expect(page).toHaveURL(/localhost:4173\/$/)
+  await expect(page).toHaveURL(new URL('/', baseURL).href)
 })
 
 // A fingertip covers about 44 by 44 CSS pixels. A tap anywhere in that square,

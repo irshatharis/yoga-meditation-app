@@ -151,7 +151,8 @@ function Session(props: SessionProps) {
     quiet()
     showNowPlaying(null)
     app.saveActive(null)
-    if (!completed && practicedSec < 60) {
+    // Under a minute is not a practice, even when skipped through to the end, so it never counts toward a streak.
+    if (practicedSec < 60) {
       navigate(`/practices/${props.practice.id}`, { replace: true })
       return
     }

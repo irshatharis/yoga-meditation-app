@@ -60,7 +60,7 @@ test('pausing stops the clock', async ({ page }) => {
 test('a finished practice lands in the journal with a note', async ({ page }) => {
   await page.goto('/practices/breathing-space')
   await page.getByRole('button', { name: /^Begin/ }).click()
-  await page.clock.runFor(1_000)
+  await page.clock.runFor(70_000)
   for (let i = 0; i < 40 && !(await page.locator('.summary-card').isVisible()); i++) {
     await page.getByRole('button', { name: 'Next' }).click()
     await page.clock.runFor(300)
@@ -144,6 +144,17 @@ test('skipping to the end does not count the skipped time as practised', async (
     await page.getByRole('button', { name: 'Next' }).click()
   }
   await expect(page.locator('.summary-card')).toContainText('2 min of Morning flow')
+})
+
+test('skipping straight through in under a minute saves nothing', async ({ page }) => {
+  await page.goto('/practices/morning-flow')
+  await page.getByRole('button', { name: /^Begin/ }).click()
+  await page.clock.pauseAt(Date.now() + 1_000)
+  const of = Number((await page.locator('.player-title small').textContent())!.match(/of (\d+)/)![1])
+  for (let i = 0; i < of; i++) await page.getByRole('button', { name: 'Next' }).click()
+  await expect(page).toHaveURL(/\/practices\/morning-flow$/)
+  await page.goto('/journal')
+  await expect(page.getByText('Nothing yet today')).toBeVisible()
 })
 
 test('closing the sound sheet with Escape does not offer to end the practice', async ({ page }) => {
