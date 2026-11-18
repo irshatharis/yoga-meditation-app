@@ -8,7 +8,7 @@ import { backupFileName, parseBackup, planMerge, resolveMerge, toBackup, type Co
 import { parseSettings } from '../store/schema'
 import { canPromptInstall, isIOS, isStandalone, onInstallAvailable, promptInstall } from '../pwa'
 import { Icon } from '../ui/icons'
-import { Segmented, Sheet, Stepper, Switch, download, pickFile, toast } from '../ui/kit'
+import { Segmented, Sheet, Stepper, Switch, download, pickFile, plural, toast } from '../ui/kit'
 import type { Ambient, BellSound, Settings } from '../domain/types'
 
 function Row(props: { title: string; hint?: string; children: JSX.Element }) {
@@ -107,7 +107,7 @@ export default function SettingsScreen() {
     const records = resolveMerge(p.plan, conflict())
     await app.importRecords({ ...records, blobs: p.parsed.blobs, settings: takeSettings() ? parseSettings(p.parsed.backup.settings) : undefined })
     setPending(null)
-    toast(`Imported ${records.practices.length} practices, ${records.poses.length} poses and ${records.logs.length} sessions.`)
+    toast(`Imported ${plural(records.practices.length, 'practice')}, ${plural(records.poses.length, 'pose')} and ${plural(records.logs.length, 'session')}.`)
   }
 
   return (
@@ -336,12 +336,12 @@ export default function SettingsScreen() {
                 From {new Date(p().parsed.backup.exportedAt).toLocaleDateString(undefined, { dateStyle: 'long' })}.
               </p>
               <ul class="small" style={{ margin: 0, 'padding-left': '1.2em' }}>
-                <li>{p().plan.practices.add.length} new practices, {p().plan.practices.clash.length} you already have</li>
-                <li>{p().plan.poses.add.length} new poses, {p().plan.poses.clash.length} you already have</li>
+                <li>{plural(p().plan.practices.add.length, 'new practice')}, {p().plan.practices.clash.length} you already have</li>
+                <li>{plural(p().plan.poses.add.length, 'new pose')}, {p().plan.poses.clash.length} you already have</li>
                 <li>
-                  {p().plan.logs.add.length} journal sessions{p().plan.logs.duplicate ? `, ${p().plan.logs.duplicate} already in your journal` : ''}
+                  {plural(p().plan.logs.add.length, 'journal session')}{p().plan.logs.duplicate ? `, ${p().plan.logs.duplicate} already in your journal` : ''}
                 </li>
-                <li>{p().parsed.blobs.length} photos and videos</li>
+                <li>{plural(p().parsed.blobs.length, 'photo or video', 'photos and videos')}</li>
               </ul>
               <Show when={p().plan.practices.clash.length + p().plan.poses.clash.length > 0}>
                 <Row title="When something already exists">

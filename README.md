@@ -54,7 +54,7 @@ To regenerate the app icons after changing `public/icons/icon.svg`, run `node sc
 
 Every push to `main` runs the type-check, unit tests and end-to-end tests, then deploys with `cf deploy` (see `.github/workflows/deploy.yml`). Pull requests get the same checks and a dry-run deploy. The workflow needs the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets.
 
-The redirect worker deploys separately with `cd redirect && npx cf deploy`.
+The redirect worker deploys separately with `cd redirect && npm install && npm run deploy`.
 
 ## Credits and licences
 

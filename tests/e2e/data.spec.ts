@@ -25,9 +25,9 @@ test('export, erase and import bring everything back', async ({ page }) => {
   await page.goto('/settings')
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Import backup' }).click()])
   await chooser.setFiles(file)
-  await expect(page.getByText('1 new practices')).toBeVisible()
+  await expect(page.getByText('1 new practice,')).toBeVisible()
   await page.getByRole('button', { name: 'Import', exact: true }).click()
-  await expect(page.getByRole('status')).toContainText('Imported 1 practices')
+  await expect(page.locator('.toast')).toContainText('Imported 1 practice,')
 
   await page.goto('/practices?kind=mine')
   await expect(page.getByText('Round trip flow')).toBeVisible()
@@ -44,7 +44,7 @@ test('a share link adds the practice on another device', async ({ page, browser 
 
   const other = await browser.newContext()
   const friend = await other.newPage()
-  await friend.goto(url.replace(/^https?:\/\/[^/]+/, 'http://localhost:4173'))
+  await friend.goto(new URL(url).pathname + new URL(url).hash)
   await expect(friend.getByText('Someone shared a practice with you')).toBeVisible()
   await friend.getByRole('button', { name: 'Add to my practices' }).click()
   await expect(friend).toHaveURL(/\/practices\//)

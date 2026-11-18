@@ -8,6 +8,8 @@ import { useApp } from '../state/app'
 import { estimateSec } from '../domain/timeline'
 import { Icon } from './icons'
 
+export const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
+
 export const pressed = (on: boolean) => (on ? 'true' : 'false')
 
 export const minutes = (sec: number) => {
