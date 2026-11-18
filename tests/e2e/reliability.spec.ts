@@ -68,7 +68,8 @@ test('the voice says each line once, in one voice, through quick skipping', asyn
   const next = page.getByRole('button', { name: 'Next', exact: true })
   for (let i = 0; i < 4; i++) await next.click()
   await page.getByRole('button', { name: 'Previous' }).click()
-  await page.clock.runFor(40_000)
+  // Warrior two's gap and hold last exactly 40 s, so stay well inside the step.
+  await page.clock.runFor(20_000)
   const said = await spoken(page)
   expect(said[0]!.text).toBe('First, Child')
   expect(said.slice(-2).map(l => l.text), 'the step landed on is announced in full').toEqual(['Next, Warrior two.', 'Right side'])
