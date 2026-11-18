@@ -112,8 +112,9 @@ function Detail(props: { practice: Practice }) {
       try {
         await navigator.share({ title: `${props.practice.title} on still.`, text: props.practice.summary, url })
         return
-      } catch {
-        // Fall back to copying when the share sheet is dismissed or unavailable.
+      } catch (err) {
+        // Dismissing the share sheet is a choice. Any other failure falls back to copying.
+        if (err instanceof DOMException && err.name === 'AbortError') return
       }
     }
     await navigator.clipboard.writeText(url)
