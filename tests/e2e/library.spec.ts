@@ -157,7 +157,7 @@ test('removing a photo or a pose frees the stored file', async ({ page }) => {
 test('a timed breath practice starts at the length it was written for', async ({ page }) => {
   for (const [id, min] of [['box-breathing', 5], ['coherent-breathing', 10], ['silent-meditation', 15]] as const) {
     await page.goto(`/practices/${id}`)
-    await expect(page.getByRole('group', { name: 'Minutes' }).getByRole('button', { name: `${min} min` })).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByRole('group', { name: 'Minutes' }).getByRole('button', { name: `${min} min`, exact: true })).toHaveAttribute('aria-pressed', 'true')
   }
 })
 
