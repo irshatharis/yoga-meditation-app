@@ -42,3 +42,29 @@ test('every link added to a pose survives a reload', async ({ page }) => {
   await page.reload()
   await expect(page.locator('.media-link')).toHaveCount(2)
 })
+
+test('cancelling a copy of a built-in practice leaves nothing behind', async ({ page }) => {
+  await page.goto('/practices')
+  await page.goto('/practices/desk-break')
+  await page.getByRole('button', { name: 'Make it yours' }).click()
+  await expect(page.getByLabel('Title')).toHaveValue('Desk break (my version)')
+  await page.getByRole('button', { name: 'Cancel' }).click()
+  await expect(page).toHaveURL(/\/practices\/desk-break$/)
+
+  await page.goto('/practices?kind=mine')
+  await expect(page.getByText('Practices you create or import will show up here.')).toBeVisible()
+})
+
+test('cancel and back stay in the app after opening a link straight to a page', async ({ page }) => {
+  await page.goto('/practices/new')
+  await page.getByRole('button', { name: 'Cancel' }).click()
+  await expect(page).toHaveURL(/\/practices$/)
+
+  await page.goto('/poses/new')
+  await page.getByRole('button', { name: 'Cancel' }).click()
+  await expect(page).toHaveURL(/\/poses$/)
+
+  await page.goto('/poses/tree')
+  await page.getByRole('button', { name: 'Back' }).click()
+  await expect(page).toHaveURL(/\/poses$/)
+})
