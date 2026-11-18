@@ -27,6 +27,8 @@ export default function Builder() {
     const source = found && snapshot(found)
     return { source, editing: source && params.id && source.origin !== 'builtin' ? source : undefined }
   })
+  // Fixed for the life of the editor, so a second tap on Save updates the practice the first one made.
+  const id = (editing?.id ?? newId('practice')) as PracticeId
   const [title, setTitle] = createSignal(editing?.title ?? (source ? `${source.title} (my version)` : ''))
   const [summary, setSummary] = createSignal(editing?.summary ?? source?.summary ?? '')
   const [kind, setKind] = createSignal<Practice['kind']>(source?.kind ?? 'yoga')
@@ -38,7 +40,7 @@ export default function Builder() {
   const [dragging, setDragging] = createSignal<number | null>(null)
 
   const draft = createMemo<Practice>(() => ({
-    id: (editing?.id ?? 'draft') as PracticeId,
+    id,
     title: title().trim() || 'Untitled practice',
     summary: summary().trim(),
     kind: kind(),
@@ -99,7 +101,7 @@ export default function Builder() {
       toast('Add at least one step first.')
       return
     }
-    const practice: Practice = { ...draft(), id: (editing?.id ?? newId('practice')) as PracticeId, title: title().trim() || 'My practice', summary: summary().trim() || `${items().length} steps, about ${minutes(total())}.` }
+    const practice: Practice = { ...draft(), title: title().trim() || 'My practice', summary: summary().trim() || `${items().length} steps, about ${minutes(total())}.` }
     await app.savePractice(practice)
     toast('Practice saved.')
     navigate(`/practices/${practice.id}`, { replace: true })

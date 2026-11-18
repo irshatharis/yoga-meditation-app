@@ -181,7 +181,7 @@ function EditLog(props: { log: SessionLog; onDone: () => void }) {
       <p class="muted" style={{ margin: 0 }}>
         {new Date(props.log.startedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })} · {minutes(props.log.practicedSec)} of {minutes(props.log.plannedSec)}
       </p>
-      <div class="chips" style={{ margin: 0, padding: 0, 'flex-wrap': 'wrap' }}>
+      <div class="chips wrap">
         <For each={[1, 2, 3, 4, 5] as const}>
           {f => (
             <button class="chip" aria-pressed={pressed(feeling() === f)} onClick={() => setFeeling(feeling() === f ? undefined : f)}>

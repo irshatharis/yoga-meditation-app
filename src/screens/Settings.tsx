@@ -1,6 +1,5 @@
 import { createSignal, For, onCleanup, Show } from 'solid-js'
 import type { JSX } from '@solidjs/web'
-import { useNavigate } from '@solidjs/router'
 import { useApp } from '../state/app'
 import { chooseVoice, createSpeaker, subscribeVoices } from '../engine/speech'
 import { bell, setAmbient, unlockAudio } from '../engine/audio'
@@ -10,7 +9,7 @@ import { parseSettings, settingsRecord } from '../store/schema'
 import { canPromptInstall, isIOS, isStandalone, onInstallAvailable, promptInstall } from '../pwa'
 import { Icon } from '../ui/icons'
 import { feedbackHref, SOURCE_URL } from '../seo'
-import { Segmented, Sheet, Stepper, Switch, download, pickFile, plural, toast } from '../ui/kit'
+import { Segmented, Sheet, Stepper, Switch, download, pickFile, plural, toast, useBack } from '../ui/kit'
 import type { Ambient, BellSound, Settings } from '../domain/types'
 
 function Row(props: { title: string; hint?: string; children: JSX.Element }) {
@@ -44,7 +43,7 @@ function Group(props: { title: string; id?: string; children: JSX.Element }) {
 
 export default function SettingsScreen() {
   const app = useApp()
-  const navigate = useNavigate()
+  const back = useBack(() => '/')
   const s = app.settings
   const set = (fn: (d: Settings) => void) => app.updateSettings(fn)
   const [voices, setVoices] = createSignal<SpeechSynthesisVoice[]>([])
@@ -129,7 +128,7 @@ export default function SettingsScreen() {
   return (
     <main class="page">
       <header class="topbar">
-        <button class="icon-btn" aria-label="Back" onClick={() => (history.length > 1 ? history.back() : navigate('/'))}>
+        <button class="icon-btn" aria-label="Back" onClick={back}>
           <Icon name="back" />
         </button>
         <strong>Settings</strong>

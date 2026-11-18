@@ -24,6 +24,8 @@ export default function PoseEditor() {
     const found = params.id ? app.pose(params.id) : undefined
     return found && snapshot(found)
   })
+  // Fixed for the life of the editor, so a second tap on Save updates the pose the first one made.
+  const id = (existing?.id ?? newId('pose')) as PoseId
   const cancel = useBack(() => (existing ? `/poses/${existing.id}` : '/poses'))
   const [name, setName] = createSignal(existing?.name ?? '')
   const [sanskrit, setSanskrit] = createSignal(existing?.sanskrit ?? '')
@@ -52,7 +54,7 @@ export default function PoseEditor() {
       return
     }
     const pose: Pose = {
-      id: (existing?.id ?? newId('pose')) as PoseId,
+      id,
       name: name().trim(),
       sanskrit: sanskrit().trim() || undefined,
       family: family(),
@@ -124,7 +126,7 @@ export default function PoseEditor() {
         </div>
         <div class="field">
           <span>Body focus</span>
-          <div class="chips" style={{ 'flex-wrap': 'wrap', margin: 0, padding: 0 }}>
+          <div class="chips wrap">
             <For each={FOCUSES}>
               {f => (
                 <button type="button" class="chip" aria-pressed={pressed(focus().includes(f))} onClick={() => setFocus(xs => (xs.includes(f) ? xs.filter(x => x !== f) : [...xs, f]))}>

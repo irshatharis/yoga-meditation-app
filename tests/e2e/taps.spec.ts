@@ -48,7 +48,10 @@ test('a quick double tap on Save makes one practice', async ({ page }) => {
   await page.getByRole('button', { name: 'Save practice' }).dblclick()
   await expect(page).toHaveURL(/\/practices\/practice-/)
 
-  await page.goto('/practices?kind=mine')
+  await page.locator('.tabbar').getByRole('link', { name: 'Practices' }).click()
+  await page.getByRole('button', { name: 'Mine' }).click()
+  await expect(page.locator('.pcard')).toHaveCount(1)
+  await page.reload()
   await expect(page.locator('.pcard')).toHaveCount(1)
 })
 
@@ -58,7 +61,10 @@ test('a quick double tap on Save makes one pose', async ({ page }) => {
   await page.getByRole('button', { name: 'Save pose' }).dblclick()
   await expect(page).toHaveURL(/\/poses\/pose-/)
 
-  await page.goto('/poses?family=mine')
+  await page.locator('.tabbar').getByRole('link', { name: 'Poses' }).click()
+  await page.getByRole('button', { name: 'Mine' }).click()
+  await expect(page.locator('.pose-tile')).toHaveCount(1)
+  await page.reload()
   await expect(page.locator('.pose-tile')).toHaveCount(1)
 })
 
@@ -69,24 +75,28 @@ test('Back in settings stays in the app after opening settings straight from a l
 })
 
 // A fingertip covers about 44 by 44 CSS pixels. A tap anywhere in that square,
-// centred on a control, should land on the control.
+// centred on a control, should land on the control. Controls scrolled off screen,
+// under the tab bar or past the edge of a sideways scrolling row are left out.
 async function missedTaps(page: Page, selector: string) {
-  return page.locator(selector).evaluateAll(els =>
-    els.flatMap(el => {
+  return page.locator(selector).evaluateAll(els => {
+    const bottom = document.querySelector('.tabbar')?.getBoundingClientRect().top ?? innerHeight
+    return els.flatMap(el => {
       const b = el.getBoundingClientRect()
-      if (!b.width || b.bottom < 0 || b.top > innerHeight) return []
       const cx = b.left + b.width / 2
       const cy = b.top + b.height / 2
+      if (!b.width || cy - 22 < 0 || cy + 22 > bottom || cx - 22 < 0 || cx + 22 > innerWidth) return []
+      const row = el.parentElement!.getBoundingClientRect()
+      if (b.left < row.left || b.right > row.right) return []
       const points = [
         [cx, cy - 21],
         [cx, cy + 21],
         [cx - 21, cy],
         [cx + 21, cy]
       ]
-      const missed = points.filter(([x, y]) => x! >= 0 && y! >= 0 && x! < innerWidth && y! < innerHeight && !el.contains(document.elementFromPoint(x!, y!)))
+      const missed = points.filter(([x, y]) => !el.contains(document.elementFromPoint(x!, y!)))
       return missed.length ? [`${el.getAttribute('aria-label') ?? el.textContent?.trim()} (${Math.round(b.width)}x${Math.round(b.height)})`] : []
     })
-  )
+  })
 }
 
 const CONTROLS = '.chip, .segmented button, .switch, .stepper button, .btn.small, .pill, .media-remove, input[type="range"]'
@@ -96,7 +106,7 @@ for (const path of ['/practices', '/practices/morning-flow', '/practices/body-sc
     await page.goto(path)
     await expect(page.locator(CONTROLS).first()).toBeVisible()
     const missed: string[] = []
-    for (let y = 0; ; y += 500) {
+    for (let y = 0; ; y += 200) {
       await page.evaluate(top => scrollTo(0, top), y)
       missed.push(...(await missedTaps(page, CONTROLS)))
       if (await page.evaluate(top => scrollY < top, y)) break

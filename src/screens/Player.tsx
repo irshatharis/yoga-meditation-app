@@ -87,7 +87,8 @@ function Session(props: SessionProps) {
   let current = run.state
   let lastPos = -1
   let lastIndex = -1
-  let log: SessionLog | null = null
+  // Once ended, a run is never saved for resuming again, whether or not it made the journal.
+  let ended = false
 
   const [state, setState] = createSignal<PlayerState>(current)
   const [now, setNow] = createSignal(Date.now())
@@ -122,7 +123,7 @@ function Session(props: SessionProps) {
     showNowPlaying({ title: locate(current.timeline, position(current, Date.now())).segment.title, practice: props.practice.title, playing: current.phase.status === 'running' })
 
   const persist = () => {
-    if (log || current.phase.status === 'done' || current.phase.status === 'ready') return
+    if (ended || current.phase.status === 'done' || current.phase.status === 'ready') return
     app.saveActive({
       id: run.id,
       practice: props.practice.id,
@@ -143,6 +144,7 @@ function Session(props: SessionProps) {
   }
 
   const finish = (completed: boolean) => {
+    ended = true
     const t = Date.now()
     if (current.phase.status === 'running') commit(pause(current, t))
     const practicedSec = Math.round(practiced(current, t) / 1000)
@@ -153,7 +155,7 @@ function Session(props: SessionProps) {
       navigate(`/practices/${props.practice.id}`, { replace: true })
       return
     }
-    log = {
+    const log: SessionLog = {
       id: newId('log'),
       practice: props.practice.id,
       title: props.practice.title,
@@ -207,7 +209,7 @@ function Session(props: SessionProps) {
   }
 
   const resume = () => {
-    if (log || current.phase.status === 'running' || current.phase.status === 'done') return
+    if (ended || current.phase.status === 'running' || current.phase.status === 'done') return
     const t = Date.now()
     primeForPractice(settings)
     commit(play(current, t))
@@ -235,7 +237,7 @@ function Session(props: SessionProps) {
   }
 
   const skip = (direction: 1 | -1) => {
-    if (log) return
+    if (ended) return
     const t = Date.now()
     speaker.stop()
     commit(direction === 1 ? next(current, t) : back(current, t))
@@ -249,7 +251,7 @@ function Session(props: SessionProps) {
   }
 
   const addTime = () => {
-    if (log) return
+    if (ended) return
     commit(extend(current, Date.now(), 15))
     persist()
     vibrate(settings, 15)
@@ -605,14 +607,11 @@ function Summary(props: { log: SessionLog; practice: Practice; onLog: (log: Sess
             </For>
           </div>
           <textarea class="input" placeholder="A note for your journal (optional)" value={note()} onInput={e => setNote(e.currentTarget.value)} />
-          <a
-            class="btn primary big block"
-            href="/journal"
-            onClick={() => save()}
-          >
+          {/* The finished run's page is replaced, so going back does not open it again. */}
+          <a class="btn primary big block" href="/journal" replace onClick={() => save()}>
             Save to journal
           </a>
-          <a class="btn ghost block" href="/" onClick={() => save()}>
+          <a class="btn ghost block" href="/" replace onClick={() => save()}>
             Done
           </a>
         </div>
