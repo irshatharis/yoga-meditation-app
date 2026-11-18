@@ -1041,7 +1041,7 @@ input[type='range'] {
   cursor: grab;
   touch-action: none;
   color: var(--muted);
-  width: 32px;
+  width: 40px;
   height: 44px;
   display: grid;
   place-items: center;
@@ -1239,8 +1239,8 @@ input[type='range'] {
   display: grid;
 }
 .item-actions .icon-btn {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
 }
 .item-actions .icon-btn:disabled {
   opacity: 0.3;
