@@ -71,14 +71,15 @@ function createApp(initial: Loaded) {
   })
 
   const poses = createMemo(() => new Map<PoseId, Pose>([...POSES, ...mine.poses].map(p => [p.id, p])))
-  const practices = createMemo(() => [...mine.practices.slice().sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0)), ...PRACTICES])
+  const userPractices = createMemo(() => mine.practices.slice().sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0)))
+  const practices = createMemo(() => [...userPractices(), ...PRACTICES])
   const practiceMap = createMemo(() => new Map<PracticeId, Practice>(practices().map(p => [p.id, p])))
 
   // Records handed in are often built from store proxies, which IndexedDB
   // cannot clone, so every write takes a plain snapshot first.
   const upsert = <T extends { id: string }>(list: T[], item: T) => {
     const i = list.findIndex(x => x.id === item.id)
-    if (i === -1) list.unshift(item)
+    if (i === -1) list.push(item)
     else reconcile(item, 'id')(list[i])
   }
   const drop = <T extends { id: string }>(list: T[], id: string) => {
@@ -104,7 +105,7 @@ function createApp(initial: Loaded) {
     pose: (id: string) => poses().get(id as PoseId),
     paths: PATHS as readonly Path[],
     userPoses: () => mine.poses,
-    userPractices: () => mine.practices,
+    userPractices,
     logs: () => history.logs,
     active,
     saveActive(session: ActiveSession | null) {
