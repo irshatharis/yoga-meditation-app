@@ -56,9 +56,13 @@ The link preview image `public/og.jpg` is a photograph of the real app. After a 
 
 Every push to `main` runs the type-check, unit tests and end-to-end tests, then deploys with `cf deploy` (see `.github/workflows/deploy.yml`). Pull requests get the same checks and a dry-run deploy. The workflow needs the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets.
 
+## Feedback
+
+Ideas, bugs and kind words are welcome. Email irshatharis@gmail.com or open an issue on GitHub.
+
 ## Credits and licences
 
 - Sounds are CC0 recordings from freesound.org by zambolino, dersinnsspace, kerozenne, pazdalma, unfa, derjuli, upkey and yurkobb.
 - Safety guidance is adapted from NCCIH, "Yoga: What You Need To Know" (public domain). NCCIH does not endorse this app.
 - Fraunces and Inter are under the SIL Open Font License.
-- Practices, scripts and pose instructions are original writing, shared under CC BY 4.0.
+- The code, practices, scripts and pose instructions are original work under the MIT License (see `LICENSE`).

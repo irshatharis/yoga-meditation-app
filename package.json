@@ -2,6 +2,9 @@
   "name": "still",
   "private": true,
   "version": "1.0.0",
+  "license": "MIT",
+  "homepage": "https://still.irshath.com",
+  "repository": "github:irshatharis/yoga-meditation-app",
   "type": "module",
   "engines": {
     "node": ">=22.12.0"
