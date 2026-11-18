@@ -16,9 +16,6 @@ export function registerUpdates() {
       }
       offer()
     },
-    onOfflineReady() {
-      toast('still. is ready to use offline.')
-    },
     onRegisteredSW(_url, registration) {
       if (!registration) return
       setInterval(() => void registration.update().catch(() => {}), 60 * 60 * 1000)
