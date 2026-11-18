@@ -34,29 +34,34 @@ export const secondsLeft = async (page: Page) => {
   return parts.reduce((acc, n) => acc * 60 + n, 0)
 }
 
-type Saved = { savedAt: number; player: { phase: { status: string; posMs?: number; originMs?: number }; timeline: { segments: { title: string; durationSec: number }[] } } }
-
-// The step and status of the session saved for resuming, read straight from
-// IndexedDB, so a test can wait for the write to land before it reloads.
-export const savedSession = (page: Page) =>
+// A value stored under `key` in IndexedDB, so a test can wait for a write to land.
+export const stored = (page: Page, key: string) =>
   page.evaluate(
-    () =>
-      new Promise<string>(resolve => {
+    key =>
+      new Promise<unknown>(resolve => {
         const req = indexedDB.open('still')
         req.onsuccess = () => {
-          const get = req.result.transaction('kv').objectStore('kv').get('active')
+          const get = req.result.transaction('kv').objectStore('kv').get(key)
           get.onsuccess = () => {
             req.result.close()
-            const s = get.result as Saved | undefined
-            if (!s) return resolve('none')
-            const { phase, timeline } = s.player
-            let pos = phase.status === 'running' ? s.savedAt - phase.originMs! : phase.posMs!
-            const step = timeline.segments.find(seg => (pos -= seg.durationSec * 1000) < 0)
-            resolve(`${phase.status} ${step?.title}`)
+            resolve(get.result)
           }
         }
-      })
+      }),
+    key
   )
+
+type Saved = { savedAt: number; player: { phase: { status: string; posMs?: number; originMs?: number }; timeline: { segments: { title: string; durationSec: number }[] } } }
+
+// The status and step of the session saved for resuming.
+export async function savedSession(page: Page) {
+  const s = (await stored(page, 'active')) as Saved | undefined
+  if (!s) return 'none'
+  const { phase, timeline } = s.player
+  let pos = phase.status === 'running' ? s.savedAt - phase.originMs! : phase.posMs!
+  const step = timeline.segments.find(seg => (pos -= seg.durationSec * 1000) < 0)
+  return `${phase.status} ${step?.title}`
+}
 
 // Records every spoken line so tests can check what the voice said.
 export async function spySpeech(page: Page) {

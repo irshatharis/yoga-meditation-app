@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { said, savedSession, secondsLeft, spySpeech, stubWakeLock, wakeLog } from './helpers'
+import { said, savedSession, secondsLeft, spySpeech, stored, stubWakeLock, wakeLog } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await stubWakeLock(page)
@@ -78,6 +78,7 @@ test('a finished practice lands in the journal with a note', async ({ page }) =>
 test('leaves the screen alone when "Keep screen on" is off', async ({ page }) => {
   await page.goto('/settings')
   await page.getByLabel('Keep screen on').click()
+  await expect.poll(async () => ((await stored(page, 'settings')) as { keepAwake?: boolean } | undefined)?.keepAwake).toBe(false)
   await page.goto('/practices/morning-flow')
   await page.getByRole('button', { name: /^Begin/ }).click()
   await page.clock.runFor(1_000)
