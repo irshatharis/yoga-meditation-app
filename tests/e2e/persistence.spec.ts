@@ -59,3 +59,24 @@ test('a second photo on a pose survives a reload', async ({ page }) => {
   await page.reload()
   await expect(page.locator('.media-item')).toHaveCount(2)
 })
+
+test('removing a photo frees its storage', async ({ page }) => {
+  await page.goto('/poses/mountain')
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Add photo or video' }).click()])
+  await chooser.setFiles({ name: 'dot.png', mimeType: 'image/png', buffer: png })
+  await expect(page.locator('.media-item')).toHaveCount(1)
+  await page.getByRole('button', { name: 'Remove', exact: true }).click()
+  await expect(page.locator('.media-item')).toHaveCount(0)
+  const blobs = () =>
+    page.evaluate(
+      () =>
+        new Promise<number>(resolve => {
+          const req = indexedDB.open('still')
+          req.onsuccess = () => {
+            const count = req.result.transaction('blobs').objectStore('blobs').count()
+            count.onsuccess = () => resolve(count.result)
+          }
+        })
+    )
+  await expect.poll(blobs).toBe(0)
+})

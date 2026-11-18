@@ -36,6 +36,13 @@ describe('backups', () => {
     expect(await fileBytes(out.value.blobs[0]!.blob)).toEqual(bytes)
   })
 
+  it('leaves out media no pose uses any more', async () => {
+    const orphan: StoredBlob = { ...blob, id: 'media-removed' }
+    const out = parseBackup(await fileBytes(await backupBlob({ ...snap, blobs: [blob, orphan] }, true)))
+    if (!out.ok) throw new Error(out.message)
+    expect(out.value.blobs.map(b => b.id)).toEqual(['media-1'])
+  })
+
   it('reads a hand-formatted backup with media', async () => {
     const data = Buffer.from(bytes).toString('base64')
     const file = { app: 'still', format: 1, exportedAt: 1, poses: [pose], media: [{ id: 'media-1', mime: 'video/mp4', name: 'clip.mp4', data }] }
