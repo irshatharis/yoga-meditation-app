@@ -101,7 +101,7 @@ async function missedTaps(page: Page, selector: string) {
 
 const CONTROLS = '.chip, .segmented button, .switch, .stepper button, .btn.small, .pill, .media-remove, input[type="range"]'
 
-for (const path of ['/practices', '/practices/morning-flow', '/practices/body-scan', '/poses', '/settings', '/practices/new?from=morning-flow', '/poses/new']) {
+for (const path of ['/practices', '/practices/morning-flow', '/practices/body-scan', '/poses', '/settings', '/practices/new?from=morning-flow', '/poses/new', '/install']) {
   test(`every small control on ${path} can be hit with a fingertip`, async ({ page }) => {
     await page.goto(path)
     await expect(page.locator(CONTROLS).first()).toBeVisible()

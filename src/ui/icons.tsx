@@ -1,7 +1,7 @@
 import type { JSX } from '@solidjs/web'
 
 // Stroke icons drawn on a 24px grid, in the spirit of Lucide (ISC).
-const PATHS = {
+export const PATHS = {
   home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
   grid: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z',
   figure: 'M12 5.5a1.75 1.75 0 1 0 0-3.5 1.75 1.75 0 0 0 0 3.5ZM5 9l7 1.5L19 9M12 10.5V15m0 0-4 6m4-6 4 6',

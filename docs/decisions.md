@@ -90,6 +90,14 @@ The person reported doubled speech, two accents, practices pausing on their own,
 
 **Taps stay taps.** `touch-action: manipulation` on the page stops two quick taps from zooming instead. Previous and Next are 64px.
 
+## Installing (2026-11-19)
+
+**A guide drawn for the browser in hand.** Only Chromium browsers let a page open an install dialog. On iPhone the person has to find Share, then Add to Home Screen, and Safari 26 moved Share behind the ••• button. `installWay()` in `src/domain/install.ts` reads the browser and picks the steps. Where the browser offers its dialog, the card is one Install button.
+
+**Drawings, not screenshots.** Each step shows a drawing of the screen with the button to tap ringed. Drawings follow the light and dark theme and weigh almost nothing offline. Screenshots from one iOS version go stale with the next.
+
+**Asked on Today, once.** A "Get the app" card sits above the suggestion until the app is installed. "Not now" hides it from Today for two weeks. Settings and About always show it. On iPhone the guide says to install first, because the installed app keeps its own storage apart from Safari, and Safari can clear a site's data after a week away.
+
 ## Open
 
 - Background audio and wake-lock behaviour on a real iPhone has not been tested. The e2e suite covers Chromium with stubbed APIs.

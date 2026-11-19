@@ -2,6 +2,7 @@ import { Figure } from '../figure/Figure'
 import { useApp } from '../state/app'
 import { Icon } from '../ui/icons'
 import { useBack } from '../ui/kit'
+import { GetTheApp } from '../ui/install'
 import { FEEDBACK_EMAIL, feedbackHref, SOURCE_URL } from '../seo'
 
 const SOUNDS = [
@@ -33,6 +34,8 @@ export default function About() {
         still<span style={{ color: 'var(--accent)' }}>.</span>
       </h1>
       <p class="lede">A free, quiet place for yoga, breathwork and meditation. No account, no ads, no tracking. Everything you do stays on your device, and the whole app works offline once it has loaded.</p>
+
+      <GetTheApp />
 
       <section class="card pad" id="feedback">
         <h2 class="display">Say hello</h2>

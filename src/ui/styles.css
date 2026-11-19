@@ -1350,3 +1350,163 @@ input[type='range'] {
 .list > * {
   min-width: 0;
 }
+
+/* Install */
+.get-app {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 16px;
+  border-radius: var(--radius);
+  background: radial-gradient(110% 120% at 100% 0%, var(--accent-soft), transparent 65%), var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-1);
+}
+.get-app strong {
+  font-weight: 620;
+}
+.get-app p {
+  margin: 2px 0 0;
+}
+.get-app-icon {
+  flex: none;
+  border-radius: 12px;
+  box-shadow: var(--shadow-1);
+}
+.install .segmented {
+  align-self: center;
+}
+.install-now {
+  min-height: 52px;
+}
+.prose .install-steps {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.prose .install-steps li {
+  margin: 0;
+}
+.install-step {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+.install-step p {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  margin: 0;
+  font-weight: 520;
+}
+.install-num {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.8rem;
+  font-weight: 700;
+  transform: translateY(-1px);
+}
+.install-art {
+  display: block;
+  width: 100%;
+  max-width: 340px;
+  height: auto;
+  margin: 0 auto;
+  font-family: var(--font-text);
+}
+.ia-screen {
+  fill: var(--surface-2);
+}
+.ia-wall {
+  fill: var(--bg-deep);
+}
+.ia-bar {
+  fill: var(--surface);
+  stroke: var(--line-strong);
+}
+.ia-key {
+  fill: var(--line);
+}
+.ia-card {
+  fill: var(--surface);
+  stroke: var(--line-strong);
+  filter: drop-shadow(0 6px 12px rgba(40, 25, 10, 0.12));
+}
+.ia-group {
+  fill: var(--surface-2);
+}
+.ia-faint {
+  fill: var(--line-strong);
+}
+.ia-icon-back {
+  fill: var(--accent);
+}
+.ia-text {
+  fill: var(--ink);
+}
+.ia-text.ia-muted {
+  fill: var(--muted);
+}
+.ia-text.ia-hot-text {
+  fill: var(--accent);
+}
+.ia-text.ia-on-hot {
+  fill: var(--accent-ink);
+}
+.ia-hot-bg {
+  fill: var(--accent-soft);
+}
+.ia-hot-fill {
+  fill: var(--accent);
+}
+.ia-on {
+  fill: var(--sage);
+}
+.ia-knob {
+  fill: #fff;
+}
+.ia-glyph {
+  color: var(--ink-2);
+}
+.ia-glyph.hot {
+  color: var(--accent);
+}
+.ia-glyph path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ia-tap {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ia-tap 1.8s var(--ease) infinite;
+}
+@keyframes ia-tap {
+  0% {
+    opacity: 0.95;
+    transform: scale(0.9);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(1.18);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ia-tap {
+    animation: none;
+  }
+}
