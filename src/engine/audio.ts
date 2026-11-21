@@ -8,6 +8,7 @@ let master: GainNode | null = null
 // Bells and ticks play through this bus so `silence` can cut whatever is still ringing.
 let fx: GainNode | null = null
 let keepAlive: HTMLAudioElement | null = null
+let lingerTimer = 0
 
 type AudioSessionNavigator = Navigator & { audioSession?: { type: string } }
 
@@ -68,6 +69,7 @@ export function resumeAudio() {
 // exempts it from background timer throttling, iOS keeps the audio session
 // alive, and lock-screen media controls appear.
 export function setKeepAlive(on: boolean) {
+  clearTimeout(lingerTimer)
   if (on) {
     if (!keepAlive) {
       keepAlive = new Audio(silentWavUrl())
@@ -149,7 +151,12 @@ export function silence() {
   setAmbient('none', 0, 0.1)
 }
 
+// The practice has already let go of the audio session when the closing bell
+// starts, so the bell holds it open until the last strike has rung out.
+// Otherwise a locked phone can suspend the page between strikes.
 export function endChime(kind: BellSound, volume: number) {
+  setKeepAlive(true)
+  lingerTimer = window.setTimeout(() => keepAlive?.pause(), 12_000)
   bell(kind, volume, 0)
   bell(kind, volume * 0.8, 3)
   bell(kind, volume * 0.65, 6)

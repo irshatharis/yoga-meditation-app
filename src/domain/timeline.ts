@@ -39,7 +39,9 @@ export type CompileOptions = {
   intervalBellSec?: number
 }
 
-const SIDE_LABEL: Record<Side, string> = { right: 'Right side', left: 'Left side' }
+const OPENING_SEC = 3
+
+const SIDE_LABEL:Record<Side, string> = { right: 'Right side', left: 'Left side' }
 
 const sidesFor = (pose: Pose, sides: 'both' | Side | undefined): (Side | undefined)[] => {
   if (!pose.sided) return [undefined]
@@ -73,6 +75,8 @@ export function compile(practice: Practice, library: ReadonlyMap<PoseId, Pose>, 
         : [first ? `First, ${title}` : `Next, ${title}`, label, detail === 'full' && pose ? pose.setup.join(' ') : undefined]
             .filter(Boolean)
             .join('. ')
+    // The practice opens with a bell, like a class, and the first words wait for its strike to sound.
+    const opening: Cue[] = first ? [{ at: 0, sound: 'bell' }, { at: Math.min(OPENING_SEC, duration / 2), say }] : [{ at: 0, say }]
     segments.push({
       kind: 'prepare',
       title,
@@ -83,7 +87,7 @@ export function compile(practice: Practice, library: ReadonlyMap<PoseId, Pose>, 
       pose: pose?.id,
       side,
       gate: pacing.waitForMe,
-      cues: [{ at: 0, say }, ...countdown(duration, settings)],
+      cues: [...opening, ...countdown(duration, settings)],
       item
     })
   }

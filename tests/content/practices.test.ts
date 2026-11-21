@@ -168,6 +168,16 @@ describe('built-in practices', () => {
     }
   })
 
+  it('open with a bell the moment they begin, at any pacing', () => {
+    const pacings = [DEFAULT_SETTINGS.pacing, { prepareSec: 0, switchSec: 0, waitForMe: false }, { prepareSec: 0, switchSec: 0, waitForMe: true }]
+    for (const pacing of pacings)
+      for (const p of PRACTICES) {
+        const [opening] = compile(p, library, { ...DEFAULT_SETTINGS, pacing }).segments
+        expect(opening?.cues, `${p.id} with ${JSON.stringify(pacing)}`).toContainEqual({ at: 0, sound: 'bell' })
+        for (const cue of opening?.cues ?? []) if (cue.say && opening?.kind === 'prepare') expect(cue.at, `${p.id} speaks over the opening bell`).toBeGreaterThan(0)
+      }
+  })
+
   it('honor every length an adjustable practice offers', () => {
     for (const p of PRACTICES) {
       if (!p.adjustable) continue
