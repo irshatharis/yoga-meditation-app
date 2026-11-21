@@ -106,7 +106,7 @@ const yoga: Practice[] = [
     title: 'Morning flow',
     summary: 'Your own gentle full-body morning sequence.',
     description:
-      'A slow, complete morning practice. It warms the spine, moves through two easy sun salutations, then opens the hips and wakes up the legs before a short rest. Every pose has a gentler option, so take it whenever you need it.',
+      'A slow, complete morning practice. It warms the spine, leaves three minutes for sun salutations done your own way, then opens the hips and wakes up the legs before a short rest. Every pose has a gentler option, so take it whenever you need it.',
     kind: 'yoga',
     level: 'gentle',
     focus: ['hips', 'spine', 'legs'],
@@ -114,26 +114,12 @@ const yoga: Practice[] = [
     items: [
       hold('child', 30, 'Rest your hips toward your heels. Let your forehead soften toward the mat. Breathe slowly and comfortably.'),
       catCow(6),
-      {
-        type: 'flow',
-        title: 'Sun salutation',
-        rounds: 2,
-        breathSec: 5,
-        alternate: true,
-        steps: [
-          step('upward-salute', 1, 'Breathe in, sweep your arms up.'),
-          step('standing-forward-fold', 1, 'Breathe out, fold forward.'),
-          step('halfway-lift', 1, 'Breathe in, lengthen halfway.'),
-          step('plank', 1, 'Breathe out, step back to plank.'),
-          step('knees-chest-chin', 1, 'Lower your knees, chest and chin to the mat.'),
-          step('cobra', 1, 'Breathe in, slide forward into a low cobra.'),
-          step('downward-dog', 4, 'Breathe out, press back to downward dog. Stay for a few breaths.'),
-          step('low-lunge', 3, 'Step one foot forward and lower the back knee. Switch feet each round.'),
-          step('standing-forward-fold', 2, 'Step the back foot forward and fold.'),
-          step('upward-salute', 1, 'Breathe in, rise up slowly, arms overhead.'),
-          step('mountain', 2, 'Breathe out, hands to heart. Pause here.')
-        ]
-      },
+      rest(
+        'Sun salutation',
+        180,
+        'Move through your own sun salutations, whichever kind you like, at your own pace. Tap next when you are done, or add time if you want more rounds.',
+        'upward-salute'
+      ),
       hold('warrior-2', 30, 'Bend your front knee gently and extend your arms. Keep the knee tracking toward your toes.'),
       hold('warrior-1', 30, 'Use a wall or chair for balance if you like. Keep the stance short, and your hips and lower back comfortable.'),
       hold('low-lunge', 30, 'Lower your back knee onto a cushion if that helps. Shift forward gently, without forcing the hip.'),

@@ -169,9 +169,9 @@ function Session(props: SessionProps) {
       ...(props.path ? { path: props.path } : {})
     }
     void app.addLog(log)
-    if (completed) {
-      playCue({ at: 0, sound: 'end', say: settings.voice.detail === 'quiet' ? undefined : 'Your practice is complete. Take a moment before you move on.' }, settings, speaker, -1)
-    }
+    // The closing bell marks the end of every practice that counts, finished or ended early, as it would close a class.
+    const words = completed && settings.voice.detail !== 'quiet' ? 'Your practice is complete. Take a moment before you move on.' : undefined
+    playCue({ at: 0, sound: 'end', say: words }, settings, speaker, -1)
     setSummary(log)
   }
 

@@ -50,3 +50,23 @@ test('pausing silences a ringing bell', async ({ page }) => {
   await page.waitForTimeout(1_500)
   expect(await level(page)).toBeLessThan(0.001)
 })
+
+test('a practice opens with a bell the moment it begins', async ({ page }) => {
+  await tapOutput(page)
+  await page.goto('/practices/morning-flow')
+  await page.getByRole('button', { name: /^Begin/ }).click()
+  await expect.poll(() => level(page), { timeout: 3_000 }).toBeGreaterThan(0.01)
+})
+
+test('a practice that reaches the journal closes with the bell, even when ended early', async ({ page }) => {
+  await tapOutput(page)
+  await page.clock.install()
+  await page.goto('/practices/morning-flow')
+  await page.getByRole('button', { name: /^Begin/ }).click()
+  await page.clock.runFor(70_000)
+
+  await page.getByRole('button', { name: 'End practice' }).click()
+  await page.getByRole('button', { name: 'End practice' }).last().click()
+  await page.waitForTimeout(1_500)
+  expect(await level(page)).toBeGreaterThan(0.01)
+})

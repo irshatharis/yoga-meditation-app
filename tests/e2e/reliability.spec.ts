@@ -65,6 +65,8 @@ test('the voice says each line once, in one voice, through quick skipping', asyn
   // Page time stands still between taps, so Previous lands by the step rule, not by how slow the run was.
   await page.clock.pauseAt(Date.now() + 1_000)
   await page.getByRole('button', { name: /^Begin/ }).click()
+  // The first words wait for the opening bell.
+  await page.clock.runFor(4_000)
   const next = page.getByRole('button', { name: 'Next', exact: true })
   for (let i = 0; i < 4; i++) await next.click()
   await page.getByRole('button', { name: 'Previous' }).click()
