@@ -5,7 +5,7 @@ import { Figure } from '../figure/Figure'
 import { blend, mirror, type FigurePose } from '../figure/skeleton'
 import { Icon } from '../ui/icons'
 import { Segmented, Sheet, toast, useBack } from '../ui/kit'
-import { DEMO_CREDIT, demoFor, youtubeUrl } from '../content/demos'
+import { LICENSE, SOURCES, mirrorFor, stageVideo, youtubeUrl } from '../content/demos'
 import { MediaGallery, PoseVideo, addMediaFromFile, addMediaLink } from './media'
 import { FAMILY_LABEL } from './Poses'
 import type { Pose } from '../domain/types'
@@ -49,7 +49,11 @@ function Detail(props: { pose: Pose }) {
   const figureFor = (s: 'right' | 'left') => (props.pose.figure ? (s === 'left' ? mirror(props.pose.figure) : props.pose.figure) : null)
   const morph = useMorph(() => figureFor('right') ?? ({} as FigurePose))
   const custom = () => props.pose.origin !== 'builtin'
-  const demo = demoFor(props.pose.id)
+  const video = () => stageVideo(props.pose)
+  const credit = () => {
+    const v = video()
+    return v?.kind === 'builtin' ? v.demo : undefined
+  }
   const back = useBack(() => '/poses')
 
   const chooseSide = (s: 'right' | 'left') => {
@@ -75,10 +79,10 @@ function Detail(props: { pose: Pose }) {
         </Show>
       </header>
 
-      <Show when={props.pose.figure || demo}>
-        <div class={['pose-stage', { video: !!demo }]}>
-          <Show when={demo} fallback={<Figure pose={morph.shown()} title={`${props.pose.name}, ${side()} side`} />}>
-            <PoseVideo pose={props.pose.id} title={`${props.pose.name}, ${side()} side`} mirrored={side() === 'left'} autoplay />
+      <Show when={props.pose.figure || video()}>
+        <div class={['pose-stage', { video: !!video() }]}>
+          <Show when={video()} keyed fallback={<Figure pose={morph.shown()} title={`${props.pose.name}, ${side()} side`} />}>
+            {v => <PoseVideo video={v} title={`${props.pose.name}, ${side()} side`} mirrored={mirrorFor(v, props.pose.sided ? side() : undefined)} autoplay />}
           </Show>
           <Show when={props.pose.sided}>
             <div style={{ position: 'absolute', top: '12px', right: '12px' }}>
@@ -95,16 +99,16 @@ function Detail(props: { pose: Pose }) {
           </Show>
         </div>
       </Show>
-      <Show when={demo}>
-        {d => (
+      <Show when={credit()} keyed>
+        {demo => (
           <p class="small muted video-credit">
             Video by{' '}
-            <a class="link" href={youtubeUrl(d())} target="_blank" rel="noopener noreferrer">
-              {DEMO_CREDIT.by}
+            <a class="link" href={youtubeUrl(demo)} target="_blank" rel="noopener noreferrer">
+              {SOURCES[demo.source].by}
             </a>
             ,{' '}
-            <a class="link" href={DEMO_CREDIT.licenseUrl} target="_blank" rel="noopener noreferrer">
-              {DEMO_CREDIT.license}
+            <a class="link" href={LICENSE.url} target="_blank" rel="noopener noreferrer">
+              {LICENSE.name}
             </a>
             , trimmed and cropped.
           </p>

@@ -1,7 +1,7 @@
 import { createSignal, onCleanup } from 'solid-js'
 import { deviceFor, installWay, type Device, type InstallWay } from './domain/install'
 import { registerSW } from 'virtual:pwa-register'
-import { DEMOS, demoSrc } from './content/demos'
+import { builtinVideoUrls } from './content/demos'
 import { toast } from './ui/kit'
 
 // Updates wait for the person. An automatic reload in the middle of a
@@ -29,13 +29,14 @@ export function registerUpdates() {
 
 // Every pose video is kept on the device so practices work offline. The
 // service worker's 'pose-videos' cache serves them, cutting byte ranges from
-// these whole copies. Clips no longer listed are dropped.
+// these whole copies. Clips no longer listed, or cut differently since, are dropped.
 async function saveVideos() {
   const cache = await caches.open('pose-videos')
-  const wanted = new Set(Object.keys(DEMOS).map(demoSrc))
+  const wanted = new Set(builtinVideoUrls())
   const have = new Set<string>()
   for (const request of await cache.keys()) {
-    const path = new URL(request.url).pathname
+    const { pathname, search } = new URL(request.url)
+    const path = pathname + search
     if (wanted.has(path)) have.add(path)
     else await cache.delete(request)
   }

@@ -1,6 +1,6 @@
 import { createSignal, For, onCleanup, Show, untrack } from 'solid-js'
-import { demoSrc } from '../content/demos'
-import type { BlobId, MediaRef, PoseId } from '../domain/types'
+import type { StageVideo } from '../content/demos'
+import type { BlobId, MediaRef } from '../domain/types'
 import { getBlob, put } from '../store/db'
 import { newId } from '../store/transfer'
 import { Icon } from '../ui/icons'
@@ -8,8 +8,8 @@ import { pickFile, toast } from '../ui/kit'
 
 const MAX_BYTES = 60 * 1024 * 1024
 
-export async function addMediaFromFile(): Promise<MediaRef | null> {
-  const file = await pickFile('image/*,video/*')
+export async function addMediaFromFile(accept = 'image/*,video/*'): Promise<MediaRef | null> {
+  const file = await pickFile(accept)
   if (!file) return null
   if (file.size > MAX_BYTES) {
     toast('That file is over 60 MB. Try a shorter clip.')
@@ -91,13 +91,27 @@ export function MediaGallery(props: { media: MediaRef[]; onRemove?: (index: numb
   )
 }
 
-// A built-in pose video. It loops without sound, since the voice does the teaching.
-// The clip shows the right side, so the left side is its mirror image.
-export function PoseVideo(props: { pose: PoseId; title: string; mirrored?: boolean; autoplay?: boolean; ref?: (video: HTMLVideoElement) => void }) {
+// The video on a pose's stage. It loops without sound, since the voice does the teaching.
+export function PoseVideo(props: { video: StageVideo; title: string; mirrored?: boolean; autoplay?: boolean; ref?: (video: HTMLVideoElement) => void }) {
+  const [src, setSrc] = createSignal(untrack(() => (props.video.kind === 'builtin' ? props.video.src : undefined)))
+  const own = untrack(() => props.video)
+  if (own.kind === 'own') {
+    let objectUrl: string | undefined
+    let gone = false
+    void getBlob(own.blob).then(stored => {
+      if (!stored || gone) return
+      objectUrl = URL.createObjectURL(stored.blob)
+      setSrc(objectUrl)
+    })
+    onCleanup(() => {
+      gone = true
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    })
+  }
   return (
     <video
       class={['pose-video', { mirrored: props.mirrored }]}
-      src={demoSrc(props.pose)}
+      src={src()}
       aria-label={props.title}
       autoplay={props.autoplay}
       loop

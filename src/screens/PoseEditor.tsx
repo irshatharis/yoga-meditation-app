@@ -3,12 +3,12 @@ import { useNavigate, useParams } from '@solidjs/router'
 import { useApp } from '../state/app'
 import { Figure } from '../figure/Figure'
 import { POSES } from '../content/poses'
-import { FAMILIES, FOCUSES, type Family, type Focus, type Level, type Pose, type PoseId } from '../domain/types'
+import { FAMILIES, FOCUSES, type Family, type Focus, type BlobId, type Level, type MediaRef, type Pose, type PoseId } from '../domain/types'
 import { newId } from '../store/transfer'
 import { Icon } from '../ui/icons'
 import { Segmented, Switch, toast, pressed, useBack } from '../ui/kit'
 import { FAMILY_LABEL } from './Poses'
-import { MediaGallery, addMediaFromFile } from './media'
+import { MediaGallery, PoseVideo, addMediaFromFile } from './media'
 
 const lines = (s: string) =>
   s
@@ -40,6 +40,14 @@ export default function PoseEditor() {
   const [easier, setEasier] = createSignal(existing?.easier ?? '')
   const [figureFrom, setFigureFrom] = createSignal<string>(existing?.figure ? (POSES.find(p => JSON.stringify(p.figure) === JSON.stringify(existing.figure))?.id ?? 'keep') : '')
   const [media, setMedia] = createSignal(existing?.media ?? [])
+
+  // The first video plays on the pose's stage. Everything else is extra reference.
+  const video = () => media().find((m): m is Extract<MediaRef, { blob: BlobId }> => m.kind === 'video')
+  const extras = () => media().filter(m => m !== video())
+  const chooseVideo = async () => {
+    const ref = await addMediaFromFile('video/*')
+    if (ref) setMedia(m => [ref, ...m.filter(x => x !== video())])
+  }
 
   const figure = createMemo(() => {
     const from = figureFrom()
@@ -96,6 +104,36 @@ export default function PoseEditor() {
           <span>Sanskrit name (optional)</span>
           <input class="input" value={sanskrit()} onInput={e => setSanskrit(e.currentTarget.value)} />
         </label>
+        <div class="field">
+          <span>Video</span>
+          <Show
+            when={video()}
+            keyed
+            fallback={
+              <button type="button" class="video-add" onClick={chooseVideo}>
+                <Icon name="video" />
+                <strong>Add a video of the pose</strong>
+                <small>Film yourself or pick a clip. It plays on the pose page and during practice, and stays on this phone so it works offline.</small>
+              </button>
+            }
+          >
+            {v => (
+              <>
+                <div class="pose-stage video">
+                  <PoseVideo video={{ kind: 'own', blob: v.blob }} title={name() || 'Your pose'} autoplay />
+                </div>
+                <div class="row">
+                  <button type="button" class="btn small" onClick={chooseVideo}>
+                    <Icon name="video" size={16} /> Replace video
+                  </button>
+                  <button type="button" class="btn small ghost" onClick={() => setMedia(m => m.filter(x => x !== v))}>
+                    <Icon name="trash" size={16} /> Remove
+                  </button>
+                </div>
+              </>
+            )}
+          </Show>
+        </div>
         <div class="row wrap">
           <label class="field grow" style={{ 'min-width': '9rem' }}>
             <span>Family</span>
@@ -137,26 +175,23 @@ export default function PoseEditor() {
           </div>
         </div>
 
-        <div class="field">
-          <span>Illustration</span>
+        <label class="field">
+          <span>{video() ? 'Drawing for practices on other devices' : 'Drawing, shown until you add a video'}</span>
           <div class="row" style={{ 'align-items': 'flex-start' }}>
-            <div class="thumb" style={{ width: '96px', height: '96px' }}>
+            <div class="thumb" style={{ width: '72px', height: '72px' }}>
               <Show when={figure()} fallback={<Icon name="image" />}>
                 {f => <Figure pose={f()} mat={false} title="" />}
               </Show>
             </div>
-            <label class="field grow">
-              <select class="input" value={figureFrom()} onChange={e => setFigureFrom(e.currentTarget.value)} aria-label="Looks like">
-                <option value="">No illustration</option>
-                <Show when={figureFrom() === 'keep'}>
-                  <option value="keep">Current illustration</option>
-                </Show>
-                <For each={[...POSES].sort((a, b) => a.name.localeCompare(b.name))}>{p => <option value={p.id}>Looks like {p.name}</option>}</For>
-              </select>
-              <small class="muted">Pick the closest built-in pose. Add your own photo or video below.</small>
-            </label>
+            <select class="input grow" value={figureFrom()} onChange={e => setFigureFrom(e.currentTarget.value)} aria-label="Looks like">
+              <option value="">No drawing</option>
+              <Show when={figureFrom() === 'keep'}>
+                <option value="keep">Current drawing</option>
+              </Show>
+              <For each={[...POSES].sort((a, b) => a.name.localeCompare(b.name))}>{p => <option value={p.id}>Looks like {p.name}</option>}</For>
+            </select>
           </div>
-        </div>
+        </label>
 
         <label class="field">
           <span>Summary</span>
@@ -180,8 +215,8 @@ export default function PoseEditor() {
         </label>
 
         <div class="field">
-          <span>Photos and videos</span>
-          <MediaGallery media={media()} onRemove={i => setMedia(m => m.filter((_, j) => j !== i))} />
+          <span>More photos and clips (optional)</span>
+          <MediaGallery media={extras()} onRemove={i => setMedia(m => m.filter(x => x !== extras()[i]))} />
           <button
             type="button"
             class="btn small"
@@ -191,7 +226,7 @@ export default function PoseEditor() {
               if (ref) setMedia(m => [...m, ref])
             }}
           >
-            <Icon name="image" size={16} /> Add photo or video
+            <Icon name="image" size={16} /> Add a photo or clip
           </button>
         </div>
         <button class="btn primary big block" type="submit">

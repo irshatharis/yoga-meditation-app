@@ -1,6 +1,6 @@
 import { createMemo, createSignal, For, Match, onCleanup, Show, Switch, untrack } from 'solid-js'
 import { useNavigate, useParams, useSearchParams } from '@solidjs/router'
-import { demoFor } from '../content/demos'
+import { mirrorFor, stageVideo } from '../content/demos'
 import { Figure } from '../figure/Figure'
 import { blend, type FigurePose } from '../figure/skeleton'
 import { advance, back, dueCues, extend, locate, next, pause, play, position, practiced, start, stepOf, steps, type PlayerState } from '../domain/player'
@@ -371,12 +371,16 @@ function Session(props: SessionProps) {
             <Match when={segment().kind === 'breath'}>
               <BreathOrb segment={segment()} intoMs={loc().intoMs} />
             </Match>
-            <Match when={demoFor(segment().pose) && segment().pose} keyed>
-              {pose => (
-                <div class="stage-video">
-                  <PoseVideo pose={pose} title={segment().title} mirrored={segment().side === 'left'} ref={showVideo} />
-                </div>
-              )}
+            <Match when={stageVideo(app.pose(segment().pose ?? '')) && segment().pose} keyed>
+              {pose => {
+                // Keyed by pose, so the clip keeps playing from getting ready into the hold.
+                const video = stageVideo(app.pose(pose))!
+                return (
+                  <div class="stage-video">
+                    <PoseVideo video={video} title={segment().title} mirrored={mirrorFor(video, segment().side)} ref={showVideo} />
+                  </div>
+                )
+              }}
             </Match>
             <Match when={shown()}>
               {pose => (

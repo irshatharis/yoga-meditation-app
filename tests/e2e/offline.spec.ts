@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { builtinVideoUrls } from '../../src/content/demos'
 
 test('works offline after the first visit', async ({ page, context }) => {
   await page.goto('/')
@@ -22,12 +23,13 @@ test('plays every pose video offline, including the byte ranges iPhones ask for'
   await page.evaluate(() => navigator.serviceWorker.ready)
   await page.reload()
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true)
-  const saved = () => page.evaluate(() => caches.open('pose-videos').then(c => c.match('/media/poses/child.mp4')).then(Boolean))
-  await expect.poll(saved, { timeout: 15_000 }).toBe(true)
+  const urls = builtinVideoUrls()
+  const saved = () => page.evaluate(urls => caches.open('pose-videos').then(c => Promise.all(urls.map(u => c.match(u)))).then(found => found.filter(Boolean).length), urls)
+  await expect.poll(saved, { timeout: 120_000 }).toBe(urls.length)
 
   await context.setOffline(true)
-  const range = await page.evaluate(() => fetch('/media/poses/child.mp4', { headers: { Range: 'bytes=0-99' } }).then(async r => [r.status, (await r.arrayBuffer()).byteLength]))
-  expect(range).toEqual([206, 100])
+  const ranges = await page.evaluate(urls => Promise.all(urls.map(u => fetch(u, { headers: { Range: 'bytes=0-99' } }).then(async r => [r.status, (await r.arrayBuffer()).byteLength]))), urls)
+  expect(ranges).toEqual(urls.map(() => [206, 100]))
   await page.goto('/poses/child')
   const video = page.locator('.pose-stage video')
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime), { timeout: 8_000 }).toBeGreaterThan(0.5)

@@ -1043,7 +1043,7 @@ input[type='range'] {
 .pose-stage.video {
   padding: 0;
   overflow: hidden;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 1;
 }
 .pose-video {
   display: block;
@@ -1053,6 +1053,26 @@ input[type='range'] {
 }
 .pose-video.mirrored {
   transform: scaleX(-1);
+}
+.video-add {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 28px 20px;
+  border: 1.5px dashed var(--line);
+  border-radius: 28px;
+  background: var(--surface);
+  color: var(--ink);
+  text-align: center;
+  font: inherit;
+  cursor: pointer;
+}
+.video-add svg {
+  color: var(--accent);
+}
+.video-add small {
+  color: var(--muted);
+  max-width: 30ch;
 }
 .video-credit {
   margin: 6px 4px 0;

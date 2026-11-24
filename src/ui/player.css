@@ -107,8 +107,11 @@
   height: auto;
 }
 .stage-video {
-  width: min(100cqw, 640px, 100cqh * 16 / 9);
-  aspect-ratio: 16 / 9;
+  /* Square when there is room. On shorter screens it keeps the full width and
+     trims the top and bottom, which the framing around each person leaves free. */
+  width: min(100cqw, 520px, 100cqh * 4 / 3);
+  aspect-ratio: 1;
+  max-height: 100cqh;
   border-radius: 20px;
   overflow: hidden;
   background: var(--p-line);
