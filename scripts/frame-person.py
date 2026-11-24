@@ -48,14 +48,25 @@ def main():
         sys.exit("no person found in that window")
     left, top = min(b[0] for b in seen), min(b[1] for b in seen)
     right, bottom = max(b[2] for b in seen), max(b[3] for b in seen)
-    size = min(height, width, round(max(right - left, bottom - top) * (1 + 2 * MARGIN)))
+    print(crop(left, top, right, bottom, width, height))
+
+
+def crop(left, top, right, bottom, width, height):
+    """A square around the person, or a 16:9 box around them when they are too wide for any square."""
+    spread = max(right - left, bottom - top) * (1 + 2 * MARGIN)
+    size = min(height, width, round(spread))
     size -= size % 2
+    if right - left > size:
+        w = min(width, round((right - left) * (1 + 2 * MARGIN)))
+        w -= w % 2
+        h = min(height, max(round(w * 9 / 16), round((bottom - top) * (1 + 2 * MARGIN))))
+        h -= h % 2
+        x = min(max(0, round((left + right - w) / 2)), width - w)
+        y = min(max(0, round((top + bottom - h) / 2)), height - h)
+        return f"[{x}, {y}, {w}, {h}]"
     x = min(max(0, round((left + right - size) / 2)), width - size)
     y = min(max(0, round((top + bottom - size) / 2)), height - size)
-    spread = max(right - left, bottom - top)
-    if spread > size:
-        print(f"warning: the person spans {round(spread)}px, wider than the tallest square", file=sys.stderr)
-    print(f"[{x}, {y}, {size}]")
+    return f"[{x}, {y}, {size}]"
 
 
 if __name__ == "__main__":

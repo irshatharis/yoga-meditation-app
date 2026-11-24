@@ -30,13 +30,18 @@ for (const [pose, demo] of Object.entries(DEMOS)) {
   const license = readFileSync(licenseFile, 'utf8')
   if (!license.startsWith('Creative Commons Attribution')) throw new Error(`${pose}: ${url} is not CC BY (${license})`)
   if (!existsSync(source) || statSync(source).size === 0) ytdlp('-f', 'bv*[height<=1080][ext=mp4]', '-o', source)
-  const [x, y, size] = demo.crop
+  const [x, y, width, height = width] = demo.crop
+  const n = ENCODING.size
+  const frame =
+    width === height
+      ? `crop=${width}:${height}:${x}:${y},scale=${n}:${n}`
+      : `crop=${width}:${height}:${x}:${y},split[a][b];[a]scale=${n}:${n}:force_original_aspect_ratio=increase,crop=${n}:${n},boxblur=24[bg];[b]scale=${n}:-2[fg];[bg][fg]overlay=0:(H-h)/2`
   const target = join(out, demoFile(pose))
   // The ffmpeg flags: seek, trim, crop and scale, no audio, H.264 that every phone plays, and the index first so playback starts before the download ends.
   execFileSync('ffmpeg', [
     '-v', 'error', '-y',
     '-ss', String(demo.from), '-i', source, '-t', String(demo.to - demo.from),
-    '-vf', `crop=${size}:${size}:${x}:${y},scale=${ENCODING.size}:${ENCODING.size},fps=${ENCODING.fps}`,
+    '-filter_complex', `${frame},fps=${ENCODING.fps}`,
     '-an', '-c:v', 'libx264', '-profile:v', 'high', '-preset', 'slow', '-crf', String(ENCODING.crf), '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
     target
   ], { stdio: 'inherit' })

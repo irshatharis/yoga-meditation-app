@@ -21,8 +21,10 @@ export type Demo = {
   // Seconds of the source to keep.
   from: number
   to: number
-  // Left, top and side of a square around the person in the source frame.
-  crop: [x: number, y: number, size: number]
+  // Left, top and side of a square around the person in the source frame. A
+  // pose too wide for a square gives a width and height instead, and the clip
+  // shows that whole box over a blurred copy of itself.
+  crop: [x: number, y: number, size: number] | [x: number, y: number, width: number, height: number]
   // The side the clip shows, for sided poses. The other side plays mirrored.
   shows?: Side
   // Seconds into the cut clip for the still photo in lists. Defaults to 60% through, when the pose is usually held.
@@ -33,7 +35,23 @@ export type Demo = {
 export const ENCODING = { size: 720, crf: 28, fps: 30 }
 
 export const DEMOS: Partial<Record<BuiltinPoseId, Demo>> = {
-  child: { source: 'gezond10', youtube: '34VqmhcuKHI', title: 'Child pose (Balasana)', from: 6.1, to: 32.2, crop: [399, 284, 796] }
+  cat: { source: 'gezond10', youtube: '6v0voosGm-A', title: 'Cat pose (Marjaryasana)', from: 6.5, to: 21.5, crop: [488, 458, 536] },
+  chair: { source: 'yogaes', youtube: 'iAclKRoyOjU', title: 'Chair Pose - Utkatasana', from: 15.5, to: 45.5, crop: [394, 0, 1080] },
+  chaturanga: { source: 'yogaes', youtube: '4KwZBU3zv6o', title: 'Baston cuatro apoyos - Chaturanga Dandasana', from: 31, to: 56, crop: [310, 260, 1400, 788] },
+  child: { source: 'gezond10', youtube: '34VqmhcuKHI', title: 'Child pose (Balasana)', from: 6.1, to: 32.2, crop: [399, 284, 796] },
+  'downward-dog': { source: 'gezond10', youtube: 'fdhpObFKZfg', title: 'Downward Dog (Adho Mukha Svanasana)', from: 7.5, to: 30.5, crop: [275, 70, 1010] },
+  'extended-side-angle': { source: 'gezond10', youtube: '-KBQ5eD78qg', title: 'Extended Side Angle (Utthita Parsvakonasana)', from: 6.5, to: 33.5, crop: [283, 0, 1080] },
+  gate: { source: 'yogaes', youtube: 'Apk_gVJ1QEo', title: 'El cerrojo - Parighasana', from: 14.5, to: 44.5, crop: [203, 0, 1564, 1080], shows: 'left' },
+  'happy-baby': { source: 'gezond10', youtube: '1E0izixrU3A', title: 'Happy Baby pose (Ananda Balasana)', from: 6.5, to: 34.5, crop: [213, 2, 1078] },
+  hero: { source: 'yogaes', youtube: 'GUO8s4d1slA', title: 'Reclined Hero Pose - Supta Virasana', from: 14, to: 21, crop: [814, 17, 1020] },
+  plank: { source: 'yogaes', youtube: '4KwZBU3zv6o', title: 'Baston cuatro apoyos - Chaturanga Dandasana', from: 23, to: 31, crop: [310, 260, 1400, 788] },
+  'seated-twist': { source: 'gezond10', youtube: '3bQ6bm8c00M', title: 'Half Lord of the Fishes (Ardha Matsyendrasana)', from: 6.5, to: 35.5, crop: [455, 320, 760] },
+  'standing-forward-fold': { source: 'gezond10', youtube: 'sspWXm4xqu0', title: 'Standing Forward Bend (Uttanasana)', from: 6.5, to: 32.5, crop: [320, 80, 930] },
+  'supine-twist': { source: 'yogaes', youtube: '0qFxyQvi18w', title: 'Flexion de Cadera - Jathara Parivarttanasana', from: 14.5, to: 44.5, crop: [0, 0, 1920, 1080] },
+  'upward-dog': { source: 'gezond10', youtube: 'vCeIU96qQtE', title: 'Upward Dog (Urdhva Mukha Svanasana)', from: 6.5, to: 33.5, crop: [268, 72, 1008] },
+  'upward-salute': { source: 'yogaes', youtube: 'iAclKRoyOjU', title: 'Chair Pose - Utkatasana', from: 15, to: 26, crop: [394, 0, 1080] },
+  'warrior-1': { source: 'yogaes', youtube: 'NgCY67xHwMI', title: 'Warrior I - Virabhadrasana I', from: 36, to: 53.5, crop: [67, 0, 1080] },
+  'warrior-2': { source: 'gezond10', youtube: 'ZiJNNFs2XMs', title: 'Warrior Pose Right (Virabhadrasana)', from: 6.5, to: 27.5, crop: [279, 32, 988] }
 }
 
 // A file's address changes whenever its cut does, so a phone that saved the old clip fetches the new one.
