@@ -2,9 +2,9 @@ import { createMemo, createSignal, For, onCleanup, Show } from 'solid-js'
 import type { JSX } from '@solidjs/web'
 import { Portal } from '@solidjs/web'
 import { useNavigate } from '@solidjs/router'
-import { Figure } from '../figure/Figure'
-import { bounds, solve, type FigurePose } from '../figure/skeleton'
-import type { Practice } from '../domain/types'
+import { bounds, solve } from '../figure/skeleton'
+import type { Pose, Practice } from '../domain/types'
+import { PoseArt } from './pose-art'
 import { useApp } from '../state/app'
 import { estimateSec } from '../domain/timeline'
 import { Icon } from './icons'
@@ -143,19 +143,19 @@ export function Toaster() {
 
 export function PracticeArt(props: { practice: Practice; class?: string }) {
   const app = useApp()
-  // The most expansive figure in the sequence reads best as a thumbnail.
-  const figure = createMemo(() => {
-    let best: FigurePose | null = null
+  // The most expansive pose in the sequence reads best as a thumbnail.
+  const pose = createMemo(() => {
+    let best: Pose | null = null
     let bestArea = 0
     for (const item of props.practice.items) {
       const ids = item.type === 'pose' ? [item.pose] : item.type === 'flow' ? item.steps.map(s => s.pose) : []
       for (const id of ids) {
-        const f = app.pose(id)?.figure
-        if (!f) continue
-        const b = bounds(solve(f))
+        const p = app.pose(id)
+        if (!p?.figure) continue
+        const b = bounds(solve(p.figure))
         const area = (b.maxX - b.minX) * (b.maxY - b.minY)
         if (area > bestArea) {
-          best = f
+          best = p
           bestArea = area
         }
       }
@@ -165,8 +165,8 @@ export function PracticeArt(props: { practice: Practice; class?: string }) {
   const color = () => (props.practice.kind === 'meditation' ? 'var(--dusk)' : 'var(--tide)')
   return (
     <div class={['art', props.practice.kind, props.class]}>
-      <Show when={props.practice.kind === 'yoga' && figure()} fallback={<div class="orb-art" style={{ '--c': color() }} />}>
-        {f => <Figure pose={f()} mat={false} title="" />}
+      <Show when={props.practice.kind === 'yoga' && pose()} fallback={<div class="orb-art" style={{ '--c': color() }} />}>
+        {p => <PoseArt pose={p()} />}
       </Show>
     </div>
   )

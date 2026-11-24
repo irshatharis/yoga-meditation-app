@@ -1,7 +1,7 @@
 import { createMemo, createSignal, For, Match, Show, Switch as SwitchFlow, untrack, snapshot } from 'solid-js'
 import { useNavigate, useParams, useSearchParams } from '@solidjs/router'
 import { useApp } from '../state/app'
-import { PoseArt } from './media'
+import { PoseArt } from '../ui/pose-art'
 import { estimateSec } from '../domain/timeline'
 import type { BreathPattern, Practice, PracticeId, PracticeItem, PoseId } from '../domain/types'
 import { newId } from '../store/transfer'

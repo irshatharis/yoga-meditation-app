@@ -1,7 +1,7 @@
 import { createMemo, For, Show } from 'solid-js'
 import { useSearchParams } from '@solidjs/router'
 import { useApp } from '../state/app'
-import { PoseArt } from './media'
+import { PoseArt } from '../ui/pose-art'
 import { Icon } from '../ui/icons'
 import { FAMILIES, type Family } from '../domain/types'
 import { pressed } from '../ui/kit'
