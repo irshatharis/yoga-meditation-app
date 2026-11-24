@@ -1274,6 +1274,14 @@ input[type='range'] {
   overflow: hidden;
   color: var(--muted);
 }
+.pose-still {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.pose-still.mirrored {
+  transform: scaleX(-1);
+}
 .pose-tile-art .figure {
   width: 112%;
 }

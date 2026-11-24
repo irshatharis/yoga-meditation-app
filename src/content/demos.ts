@@ -25,6 +25,8 @@ export type Demo = {
   crop: [x: number, y: number, size: number]
   // The side the clip shows, for sided poses. The other side plays mirrored.
   shows?: Side
+  // Seconds into the cut clip for the still photo in lists. Defaults to 60% through, when the pose is usually held.
+  still?: number
 }
 
 // Changing how clips are encoded changes every file, so it is part of each file's address.
@@ -44,6 +46,9 @@ const version = (demo: Demo) => {
 export const demoFile = (pose: string) => `${pose}.mp4`
 
 export const demoSrc = (pose: BuiltinPoseId, demo: Demo) => `/media/poses/${demoFile(pose)}?v=${version(demo)}`
+
+// The still ships with the app (it is precached), so lists show photos offline from the first visit.
+export const stillSrc = (pose: string) => `/media/stills/${pose}.jpg`
 
 export const youtubeUrl = (demo: Demo) => `https://www.youtube.com/watch?v=${demo.youtube}`
 

@@ -1,7 +1,7 @@
 import { createMemo, For, Show } from 'solid-js'
 import { useSearchParams } from '@solidjs/router'
 import { useApp } from '../state/app'
-import { Figure } from '../figure/Figure'
+import { PoseArt } from './media'
 import { Icon } from '../ui/icons'
 import { FAMILIES, type Family } from '../domain/types'
 import { pressed } from '../ui/kit'
@@ -71,9 +71,7 @@ export default function Poses() {
             {p => (
               <a class="pose-tile" href={`/poses/${p.id}`}>
                 <div class="pose-tile-art">
-                  <Show when={p.figure} fallback={<Icon name="image" size={28} />}>
-                    {f => <Figure pose={f()} mat={false} title="" />}
-                  </Show>
+                  <PoseArt pose={p} fallback={<Icon name="image" size={28} />} />
                 </div>
                 <strong>{p.name}</strong>
                 <span class="small muted">{p.sanskrit ?? FAMILY_LABEL[p.family]}</span>

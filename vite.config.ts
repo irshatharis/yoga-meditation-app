@@ -40,7 +40,7 @@ export default defineConfig({
       },
       workbox: {
         // The prerendered pages are for crawlers. Offline, every route boots from index.html.
-        globPatterns: ['index.html', '**/*.{js,css,svg,png,webp,woff2,webmanifest,mp3,mp4,webm}'],
+        globPatterns: ['index.html', '**/*.{js,css,svg,png,jpg,webp,woff2,webmanifest,mp3,mp4,webm}'],
         // Pose videos are saved by the page into their own cache (see src/pwa.ts),
         // because a precached file cannot answer the byte-range requests iPhones use to play video.
         globIgnores: ['og.jpg', 'media/poses/**'],

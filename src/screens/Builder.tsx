@@ -1,7 +1,7 @@
 import { createMemo, createSignal, For, Match, Show, Switch as SwitchFlow, untrack, snapshot } from 'solid-js'
 import { useNavigate, useParams, useSearchParams } from '@solidjs/router'
 import { useApp } from '../state/app'
-import { Figure } from '../figure/Figure'
+import { PoseArt } from './media'
 import { estimateSec } from '../domain/timeline'
 import type { BreathPattern, Practice, PracticeId, PracticeItem, PoseId } from '../domain/types'
 import { newId } from '../store/transfer'
@@ -213,9 +213,7 @@ export default function Builder() {
               {p => (
                 <button class="pose-tile" onClick={() => addPose(p.id)}>
                   <div class="pose-tile-art">
-                    <Show when={p.figure} fallback={<Icon name="image" />}>
-                      {f => <Figure pose={f()} mat={false} title="" />}
-                    </Show>
+                    <PoseArt pose={p} fallback={<Icon name="image" />} />
                   </div>
                   <strong>{p.name}</strong>
                 </button>
@@ -240,7 +238,7 @@ function ItemEditor(props: { item: PracticeItem; onChange: (fn: (item: PracticeI
               <>
                 <div class="row">
                   <span class="thumb">
-                    <Show when={pose()?.figure}>{f => <Figure pose={f()} mat={false} title="" />}</Show>
+                    <PoseArt pose={pose()} />
                   </span>
                   <strong class="grow">{pose()?.name ?? 'Missing pose'}</strong>
                 </div>

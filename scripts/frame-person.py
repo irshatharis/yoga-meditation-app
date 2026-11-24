@@ -58,4 +58,5 @@ def main():
     print(f"[{x}, {y}, {size}]")
 
 
-main()
+if __name__ == "__main__":
+    main()

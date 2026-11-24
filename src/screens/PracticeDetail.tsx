@@ -2,7 +2,7 @@ import { createMemo, createSignal, For, Show, untrack } from 'solid-js'
 import { useNavigate, useParams, useSearchParams } from '@solidjs/router'
 import { useApp } from '../state/app'
 import { authoredSec, compile, type Segment } from '../domain/timeline'
-import { Figure } from '../figure/Figure'
+import { PoseArt } from './media'
 import { primeForPractice } from '../engine/session'
 import { encodeShare, newId } from '../store/transfer'
 import { Icon } from '../ui/icons'
@@ -290,14 +290,13 @@ function Detail(props: { practice: Practice }) {
 }
 
 function StepRow(props: { segment: Segment; index: number }) {
+  const app = useApp()
   const href = () => (props.segment.pose ? `/poses/${props.segment.pose}` : undefined)
   const body = (
     <>
       <span class="num">{String(props.index + 1).padStart(2, '0')}</span>
       <span class="thumb">
-        <Show when={props.segment.figure} fallback={<Icon name={props.segment.kind === 'breath' ? 'wind' : 'leaf'} />}>
-          {f => <Figure pose={f()} mat={false} title="" />}
-        </Show>
+        <PoseArt pose={app.pose(props.segment.pose ?? '')} figure={props.segment.figure} side={props.segment.side} fallback={<Icon name={props.segment.kind === 'breath' ? 'wind' : 'leaf'} />} />
       </span>
       <span class="grow">
         <strong style={{ 'font-weight': 550 }}>{props.segment.title}</strong>

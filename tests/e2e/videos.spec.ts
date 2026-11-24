@@ -12,6 +12,13 @@ test('a pose page shows a real person doing the pose, with credit', async ({ pag
   await expect(page.locator('.video-credit')).toContainText('Gezond10')
 })
 
+test('pose lists show a photo of the pose', async ({ page }) => {
+  await page.goto('/poses')
+  const still = page.locator('.pose-tile', { hasText: 'Child' }).locator('img.pose-still')
+  await expect(still).toHaveAttribute('src', '/media/stills/child.jpg')
+  await expect.poll(() => still.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(320)
+})
+
 test('a pose without a video keeps its drawing', async ({ page }) => {
   await page.goto('/poses/mountain')
   await expect(page.locator('.pose-stage .figure')).toBeVisible()
