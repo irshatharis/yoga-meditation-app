@@ -139,6 +139,9 @@ export function compile(practice: Practice, library: ReadonlyMap<PoseId, Pose>, 
         })
         if (steps.length === 0) return
         prepare(index, item.title, item.rounds > 1 ? `${item.rounds} rounds` : undefined, figureFor(steps[0]!.pose, 'right'), undefined, undefined, first)
+        // Getting ready shows the flow's first pose, without reading that pose's own setup aloud.
+        const ready = segments.at(-1)
+        if (ready?.kind === 'prepare' && ready.item === index) ready.pose = steps[0]!.pose.id
         for (let round = 1; round <= item.rounds; round++) {
           const lead: Side = item.alternate && round % 2 === 0 ? 'left' : 'right'
           steps.forEach(({ step, pose }, s) => {

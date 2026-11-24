@@ -178,6 +178,12 @@ describe('built-in practices', () => {
       }
   })
 
+  it('show a pose while getting ready for every yoga step', () => {
+    for (const p of PRACTICES.filter(p => p.kind === 'yoga'))
+      for (const s of compile(p, library, DEFAULT_SETTINGS).segments)
+        if (s.kind === 'prepare' && p.items[s.item]?.type !== 'sit' && p.items[s.item]?.type !== 'breath') expect(s.pose, `${p.id} getting ready for ${s.title}`).toBeDefined()
+  })
+
   it('honor every length an adjustable practice offers', () => {
     for (const p of PRACTICES) {
       if (!p.adjustable) continue
