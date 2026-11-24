@@ -4,6 +4,10 @@ import { DEMOS } from '../../src/content/demos'
 import { POSE_IDS } from '../../src/content/pose-ids'
 
 describe('pose videos', () => {
+  it('show a real person for every built-in pose', () => {
+    expect(POSE_IDS.filter(pose => !DEMOS[pose])).toEqual([])
+  })
+
   it('ship a cut file for every built-in pose that lists one', () => {
     for (const [pose, demo] of Object.entries(DEMOS)) {
       expect(POSE_IDS, pose).toContain(pose)
