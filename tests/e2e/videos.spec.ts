@@ -20,7 +20,11 @@ test('pose lists show a photo of the pose', async ({ page }) => {
 })
 
 test('a pose without a video keeps its drawing', async ({ page }) => {
-  await page.goto('/poses/mountain')
+  await page.goto('/poses/new')
+  await page.getByLabel('Name', { exact: true }).fill('Drawn only')
+  await page.getByLabel('Looks like').selectOption({ label: 'Looks like Tree' })
+  await page.getByRole('button', { name: 'Save pose' }).click()
+  await expect(page).toHaveURL(/\/poses\/pose-/)
   await expect(page.locator('.pose-stage .figure')).toBeVisible()
   await expect(page.locator('.pose-stage video')).toHaveCount(0)
 })
@@ -37,8 +41,8 @@ test('the player shows the video and moves it only while practising', async ({ p
   await expect.poll(() => playing(video), { timeout: 5_000 }).toBe(true)
 
   await page.getByRole('button', { name: 'Next', exact: true }).click()
-  await expect(video).toHaveCount(0)
-  await expect(page.locator('.stage-figure .figure')).toBeVisible()
+  await expect(page.locator('.stage-video video[src*="/child.mp4"]')).toHaveCount(0)
+  await expect(page.locator('.stage-video video, .stage-figure .figure').first()).toBeVisible()
 })
 
 const clip = () => readFile('public/media/poses/child.mp4')
