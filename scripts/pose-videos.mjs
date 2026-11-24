@@ -35,7 +35,7 @@ for (const [pose, demo] of Object.entries(DEMOS)) {
   const frame =
     width === height
       ? `crop=${width}:${height}:${x}:${y},scale=${n}:${n}`
-      : `crop=${width}:${height}:${x}:${y},split[a][b];[a]scale=${n}:${n}:force_original_aspect_ratio=increase,crop=${n}:${n},boxblur=24[bg];[b]scale=${n}:-2[fg];[bg][fg]overlay=0:(H-h)/2`
+      : `crop=${width}:${height}:${x}:${y},split[a][b];[a]scale=${n}:${n}:force_original_aspect_ratio=increase,crop=${n}:${n},boxblur=24[bg];[b]scale=${n}:${n}:force_original_aspect_ratio=decrease[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2`
   const target = join(out, demoFile(pose))
   // The ffmpeg flags: seek, trim, crop and scale, no audio, H.264 that every phone plays, and the index first so playback starts before the download ends.
   execFileSync('ffmpeg', [
