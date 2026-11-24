@@ -41,8 +41,16 @@ export default defineConfig({
       workbox: {
         // The prerendered pages are for crawlers. Offline, every route boots from index.html.
         globPatterns: ['index.html', '**/*.{js,css,svg,png,webp,woff2,webmanifest,mp3,mp4,webm}'],
-        // Pose videos load when shown, so installing the app does not download every clip.
+        // Pose videos are saved by the page into their own cache (see src/pwa.ts),
+        // because a precached file cannot answer the byte-range requests iPhones use to play video.
         globIgnores: ['og.jpg', 'media/poses/**'],
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/media/poses/'),
+            handler: 'CacheFirst',
+            options: { cacheName: 'pose-videos', rangeRequests: true, cacheableResponse: { statuses: [200] } }
+          }
+        ],
         navigateFallback: '/index.html',
         cleanupOutdatedCaches: true,
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024

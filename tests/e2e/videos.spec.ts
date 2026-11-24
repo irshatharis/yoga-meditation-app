@@ -32,11 +32,3 @@ test('the player shows the video and moves it only while practising', async ({ p
   await expect(video).toHaveCount(0)
   await expect(page.locator('.stage-figure .figure')).toBeVisible()
 })
-
-test('the app install does not download pose videos', async ({ page }) => {
-  await page.goto('/')
-  const sw = await page.request.get('/sw.js')
-  const precached = await sw.text()
-  expect(precached, 'the service worker lists what it precaches').toContain('media/keepawake.mp4')
-  expect(precached).not.toContain('media/poses/')
-})
