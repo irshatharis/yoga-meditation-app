@@ -1,5 +1,6 @@
 import { createMemo, createSignal, For, Match, onCleanup, Show, Switch, untrack } from 'solid-js'
 import { useNavigate, useParams, useSearchParams } from '@solidjs/router'
+import { demoFor } from '../content/demos'
 import { Figure } from '../figure/Figure'
 import { blend, type FigurePose } from '../figure/skeleton'
 import { advance, back, dueCues, extend, locate, next, pause, play, position, practiced, start, stepOf, steps, type PlayerState } from '../domain/player'
@@ -13,6 +14,7 @@ import { useApp, type ActiveSession } from '../state/app'
 import { Icon } from '../ui/icons'
 import { clock, minutes, Segmented, Sheet, pressed } from '../ui/kit'
 import { newId } from '../store/transfer'
+import { PoseVideo } from './media'
 import '../ui/player.css'
 
 const reduceMotion = () =>
@@ -136,7 +138,16 @@ function Session(props: SessionProps) {
     })
   }
 
+  // The pose video moves only while the practice runs.
+  let video: HTMLVideoElement | undefined
+  const showVideo = (v: HTMLVideoElement) => {
+    video = v
+    // The ref runs before the element has its source, so it can only start once the first frame is in.
+    v.addEventListener('loadeddata', () => current.phase.status === 'running' && void v.play().catch(() => {}), { once: true })
+  }
+
   const quiet = () => {
+    video?.pause()
     speaker.stop()
     silence()
     setKeepAlive(false)
@@ -221,6 +232,7 @@ function Session(props: SessionProps) {
       if (search.session !== run.id) setSearch({ session: run.id, resume: undefined }, { replace: true })
     }
     if (settings.keepAwake) keepAwake.on()
+    void video?.play().catch(() => {})
     setKeepAlive(true)
     resumeAudio()
     setAmbient(settings.sound.ambient, settings.sound.ambientVolume)
@@ -358,6 +370,13 @@ function Session(props: SessionProps) {
           <Switch>
             <Match when={segment().kind === 'breath'}>
               <BreathOrb segment={segment()} intoMs={loc().intoMs} />
+            </Match>
+            <Match when={demoFor(segment().pose) && segment().pose} keyed>
+              {pose => (
+                <div class="stage-video">
+                  <PoseVideo pose={pose} title={segment().title} mirrored={segment().side === 'left'} ref={showVideo} />
+                </div>
+              )}
             </Match>
             <Match when={shown()}>
               {pose => (

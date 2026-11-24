@@ -4,6 +4,7 @@ import { Icon } from '../ui/icons'
 import { useBack } from '../ui/kit'
 import { GetTheApp } from '../ui/install'
 import { FEEDBACK_EMAIL, feedbackHref, SOURCE_URL } from '../seo'
+import { DEMO_CREDIT } from '../content/demos'
 
 const SOUNDS = [
   ['Singing bowl', 'zambolino', 'https://freesound.org/people/zambolino/sounds/439235/'],
@@ -87,6 +88,17 @@ export default function About() {
             </li>
           ))}
         </ul>
+        <p>
+          Pose videos are cut from the yoga series by{' '}
+          <a class="link" href={DEMO_CREDIT.channel} target="_blank" rel="noopener noreferrer">
+            {DEMO_CREDIT.by}
+          </a>{' '}
+          on YouTube, released under{' '}
+          <a class="link" href={DEMO_CREDIT.licenseUrl} target="_blank" rel="noopener noreferrer">
+            {DEMO_CREDIT.license}
+          </a>
+          . still. trims, crops and mutes each clip. Gezond10 does not endorse this app.
+        </p>
         <p>Typefaces are Fraunces and Inter, under the SIL Open Font License. Icons are drawn in the style of Lucide (ISC).</p>
         <p>
           The code, practices and writing in still. are released under the{' '}

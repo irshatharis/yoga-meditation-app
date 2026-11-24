@@ -106,6 +106,13 @@
   width: 100%;
   height: auto;
 }
+.stage-video {
+  width: min(100cqw, 640px, 100cqh * 16 / 9);
+  aspect-ratio: 16 / 9;
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--p-line);
+}
 .player.prepping .stage-figure {
   animation: prep-breathe 2.6s var(--ease-soft) infinite;
 }

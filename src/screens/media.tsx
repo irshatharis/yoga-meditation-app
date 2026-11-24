@@ -1,5 +1,6 @@
 import { createSignal, For, onCleanup, Show, untrack } from 'solid-js'
-import type { BlobId, MediaRef } from '../domain/types'
+import { demoSrc } from '../content/demos'
+import type { BlobId, MediaRef, PoseId } from '../domain/types'
 import { getBlob, put } from '../store/db'
 import { newId } from '../store/transfer'
 import { Icon } from '../ui/icons'
@@ -87,5 +88,26 @@ export function MediaGallery(props: { media: MediaRef[]; onRemove?: (index: numb
         </For>
       </div>
     </Show>
+  )
+}
+
+// A built-in pose video. It loops without sound, since the voice does the teaching.
+// The clip shows the right side, so the left side is its mirror image.
+export function PoseVideo(props: { pose: PoseId; title: string; mirrored?: boolean; autoplay?: boolean; ref?: (video: HTMLVideoElement) => void }) {
+  return (
+    <video
+      class={['pose-video', { mirrored: props.mirrored }]}
+      src={demoSrc(props.pose)}
+      aria-label={props.title}
+      autoplay={props.autoplay}
+      loop
+      muted
+      playsinline
+      preload="auto"
+      ref={video => {
+        video.muted = true
+        props.ref?.(video)
+      }}
+    />
   )
 }

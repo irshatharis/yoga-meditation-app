@@ -5,7 +5,8 @@ import { Figure } from '../figure/Figure'
 import { blend, mirror, type FigurePose } from '../figure/skeleton'
 import { Icon } from '../ui/icons'
 import { Segmented, Sheet, toast, useBack } from '../ui/kit'
-import { MediaGallery, addMediaFromFile, addMediaLink } from './media'
+import { DEMO_CREDIT, demoFor, youtubeUrl } from '../content/demos'
+import { MediaGallery, PoseVideo, addMediaFromFile, addMediaLink } from './media'
 import { FAMILY_LABEL } from './Poses'
 import type { Pose } from '../domain/types'
 
@@ -48,6 +49,7 @@ function Detail(props: { pose: Pose }) {
   const figureFor = (s: 'right' | 'left') => (props.pose.figure ? (s === 'left' ? mirror(props.pose.figure) : props.pose.figure) : null)
   const morph = useMorph(() => figureFor('right') ?? ({} as FigurePose))
   const custom = () => props.pose.origin !== 'builtin'
+  const demo = demoFor(props.pose.id)
   const back = useBack(() => '/poses')
 
   const chooseSide = (s: 'right' | 'left') => {
@@ -73,9 +75,11 @@ function Detail(props: { pose: Pose }) {
         </Show>
       </header>
 
-      <Show when={props.pose.figure}>
-        <div class="pose-stage">
-          <Figure pose={morph.shown()} title={`${props.pose.name}, ${side()} side`} />
+      <Show when={props.pose.figure || demo}>
+        <div class={['pose-stage', { video: !!demo }]}>
+          <Show when={demo} fallback={<Figure pose={morph.shown()} title={`${props.pose.name}, ${side()} side`} />}>
+            <PoseVideo pose={props.pose.id} title={`${props.pose.name}, ${side()} side`} mirrored={side() === 'left'} autoplay />
+          </Show>
           <Show when={props.pose.sided}>
             <div style={{ position: 'absolute', top: '12px', right: '12px' }}>
               <Segmented
@@ -90,6 +94,21 @@ function Detail(props: { pose: Pose }) {
             </div>
           </Show>
         </div>
+      </Show>
+      <Show when={demo}>
+        {d => (
+          <p class="small muted video-credit">
+            Video by{' '}
+            <a class="link" href={youtubeUrl(d())} target="_blank" rel="noopener noreferrer">
+              {DEMO_CREDIT.by}
+            </a>
+            ,{' '}
+            <a class="link" href={DEMO_CREDIT.licenseUrl} target="_blank" rel="noopener noreferrer">
+              {DEMO_CREDIT.license}
+            </a>
+            , trimmed and cropped.
+          </p>
+        )}
       </Show>
 
       <div class="stack">

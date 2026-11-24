@@ -41,7 +41,8 @@ export default defineConfig({
       workbox: {
         // The prerendered pages are for crawlers. Offline, every route boots from index.html.
         globPatterns: ['index.html', '**/*.{js,css,svg,png,webp,woff2,webmanifest,mp3,mp4,webm}'],
-        globIgnores: ['og.jpg'],
+        // Pose videos load when shown, so installing the app does not download every clip.
+        globIgnores: ['og.jpg', 'media/poses/**'],
         navigateFallback: '/index.html',
         cleanupOutdatedCaches: true,
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024
