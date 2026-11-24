@@ -26,7 +26,7 @@ const SIZES = [
 for (const size of SIZES) {
   test(`the pose, the clock and the controls each keep their own space on ${size.name}`, async ({ page }) => {
     await page.setViewportSize(size)
-    for (const [id, stage] of [['morning-flow', '.stage-figure svg'], ['box-breathing', '.breath-orb'], ['guided-meditation', '.player-stage > *']]) {
+    for (const [id, stage] of [['morning-flow', '.stage-video'], ['box-breathing', '.breath-orb'], ['guided-meditation', '.player-stage > *']]) {
       await page.goto(`/practices/${id}`)
       await page.getByRole('button', { name: /^Begin/ }).click()
       await page.clock.runFor(14_000)
