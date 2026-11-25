@@ -81,31 +81,33 @@ export function setKeepAlive(on: boolean) {
   } else keepAlive?.pause()
 }
 
-function playBuffer(buffer: AudioBuffer, volume: number, when: number) {
-  if (!ctx || !fx) return
+function playBuffer(buffer: AudioBuffer, volume: number, when: number, bus: GainNode) {
+  if (!ctx) return
   const src = ctx.createBufferSource()
   src.buffer = buffer
   const g = ctx.createGain()
   g.gain.value = volume
-  src.connect(g).connect(fx)
+  src.connect(g).connect(bus)
   src.start(ctx.currentTime + when)
 }
 
 export function bell(kind: BellSound, volume: number, when = 0) {
-  if (!ctx || !master || volume <= 0) return
+  if (!ctx || !master || !fx || volume <= 0) return
+  // The bus it was struck on, so a recording still loading when the bells are hushed stays hushed.
+  const bus = fx
   if (kind === 'soft') {
-    synthBell(volume, when)
+    synthBell(volume, when, bus)
     return
   }
-  void load(kind).then(buffer => (buffer ? playBuffer(buffer, volume * 0.9, when) : synthBell(volume, when)))
+  void load(kind).then(buffer => (buffer ? playBuffer(buffer, volume * 0.9, when, bus) : synthBell(volume, when, bus)))
 }
 
-function synthBell(volume: number, when: number) {
-  if (!ctx || !fx) return
+function synthBell(volume: number, when: number, bus: GainNode) {
+  if (!ctx) return
   const t0 = ctx.currentTime + when
   const out = ctx.createGain()
   out.gain.value = volume * 0.3
-  out.connect(fx)
+  out.connect(bus)
   const partials: [number, number, number][] = [[1, 1, 6], [2.71, 0.45, 4.5], [5.18, 0.2, 3], [8.33, 0.07, 2]]
   for (const [ratio, gain, decay] of partials) {
     for (const detune of [-3, 3]) {

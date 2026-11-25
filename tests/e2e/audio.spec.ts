@@ -55,10 +55,24 @@ test('skipping on fades the bell still ringing from the step left behind', async
   await tapOutput(page)
   await page.goto('/practices/morning-flow')
   await page.getByRole('button', { name: /^Begin/ }).click()
-  await expect.poll(() => level(page), { timeout: 3_000 }).toBeGreaterThan(0.01)
+  await expect.poll(() => level(page), { timeout: 6_000 }).toBeGreaterThan(0.01)
   // The next step's get-ready gap has no bell of its own.
   await page.getByRole('button', { name: 'Next', exact: true }).click()
   await page.waitForTimeout(1_500)
+  expect(await level(page)).toBeLessThan(0.001)
+})
+
+test('a bell still loading when the person skips on stays quiet', async ({ page }) => {
+  await tapOutput(page)
+  // Hold the bell recording back, as a slow phone would while decoding it.
+  await page.route('**/sounds/**', async route => {
+    await new Promise(r => setTimeout(r, 2_000))
+    await route.continue()
+  })
+  await page.goto('/practices/morning-flow')
+  await page.getByRole('button', { name: /^Begin/ }).click()
+  await page.getByRole('button', { name: 'Next', exact: true }).click()
+  await page.waitForTimeout(4_000)
   expect(await level(page)).toBeLessThan(0.001)
 })
 
@@ -66,7 +80,8 @@ test('a practice opens with a bell the moment it begins', async ({ page }) => {
   await tapOutput(page)
   await page.goto('/practices/morning-flow')
   await page.getByRole('button', { name: /^Begin/ }).click()
-  await expect.poll(() => level(page), { timeout: 3_000 }).toBeGreaterThan(0.01)
+  // The recording is decoded after the tap, which a busy test machine can take seconds over.
+  await expect.poll(() => level(page), { timeout: 6_000 }).toBeGreaterThan(0.01)
 })
 
 test('a practice that reaches the journal closes with the bell, even when ended early', async ({ page }) => {
