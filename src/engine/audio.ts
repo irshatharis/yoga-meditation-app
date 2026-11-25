@@ -137,9 +137,9 @@ export function tick(volume: number) {
   osc.stop(t0 + 0.16)
 }
 
-// Ends every sound within about half a second: ringing bells, scheduled
-// bells and the ambient loop. A struck bowl otherwise rings for 26 seconds.
-export function silence() {
+// Fades out ringing and scheduled bells within about half a second. A struck
+// bowl otherwise rings for 26 seconds, on into whatever comes next.
+export function hushBells() {
   if (!ctx || !master) return
   const old = fx
   fx = ctx.createGain()
@@ -148,6 +148,11 @@ export function silence() {
     old.gain.setTargetAtTime(0, ctx.currentTime, 0.08)
     setTimeout(() => old.disconnect(), 600)
   }
+}
+
+// Ends every sound: bells and the ambient loop.
+export function silence() {
+  hushBells()
   setAmbient('none', 0, 0.1)
 }
 

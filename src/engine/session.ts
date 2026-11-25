@@ -2,6 +2,7 @@ import type { Cue } from '../domain/timeline'
 import type { Settings } from '../domain/types'
 import { bell, endChime, preloadSounds, tick, unlockAudio } from './audio'
 import { primeSpeech, type Speaker } from './speech'
+import { primeStage } from './stage'
 
 // Call from the tap that starts a practice. Audio and speech both need a
 // user gesture before they are allowed to make sound later on.
@@ -9,6 +10,7 @@ let primedAt = 0
 export function primeForPractice(settings?: Settings) {
   unlockAudio()
   primeSpeech()
+  primeStage()
   if (settings) preloadSounds(settings.sound.bell, settings.sound.ambient)
   primedAt = Date.now()
 }

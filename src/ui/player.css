@@ -116,6 +116,9 @@
   overflow: hidden;
   background: var(--p-line);
 }
+.stage-video .pose-video {
+  background: center / cover no-repeat;
+}
 .player.prepping .stage-figure {
   animation: prep-breathe 2.6s var(--ease-soft) infinite;
 }

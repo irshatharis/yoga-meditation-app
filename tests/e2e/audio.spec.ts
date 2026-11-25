@@ -51,6 +51,17 @@ test('pausing silences a ringing bell', async ({ page }) => {
   expect(await level(page)).toBeLessThan(0.001)
 })
 
+test('skipping on fades the bell still ringing from the step left behind', async ({ page }) => {
+  await tapOutput(page)
+  await page.goto('/practices/morning-flow')
+  await page.getByRole('button', { name: /^Begin/ }).click()
+  await expect.poll(() => level(page), { timeout: 3_000 }).toBeGreaterThan(0.01)
+  // The next step's get-ready gap has no bell of its own.
+  await page.getByRole('button', { name: 'Next', exact: true }).click()
+  await page.waitForTimeout(1_500)
+  expect(await level(page)).toBeLessThan(0.001)
+})
+
 test('a practice opens with a bell the moment it begins', async ({ page }) => {
   await tapOutput(page)
   await page.goto('/practices/morning-flow')
@@ -67,6 +78,5 @@ test('a practice that reaches the journal closes with the bell, even when ended 
 
   await page.getByRole('button', { name: 'End practice' }).click()
   await page.getByRole('button', { name: 'End practice' }).last().click()
-  await page.waitForTimeout(1_500)
-  expect(await level(page)).toBeGreaterThan(0.01)
+  await expect.poll(() => level(page), { timeout: 5_000 }).toBeGreaterThan(0.01)
 })

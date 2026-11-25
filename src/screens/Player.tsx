@@ -1,20 +1,21 @@
 import { createMemo, createSignal, For, Match, onCleanup, Show, Switch, untrack } from 'solid-js'
 import { useNavigate, useParams, useSearchParams } from '@solidjs/router'
-import { mirrorFor, stageVideo } from '../content/demos'
+import { mirrorFor, stageVideo, stillSrc } from '../content/demos'
 import { Figure } from '../figure/Figure'
 import { blend, type FigurePose } from '../figure/skeleton'
 import { advance, back, dueCues, extend, locate, next, pause, play, position, practiced, start, stepOf, steps, type PlayerState } from '../domain/player'
 import { compile, type Segment } from '../domain/timeline'
-import type { PathId, Practice, SessionLog } from '../domain/types'
+import type { BlobId, PathId, Practice, SessionLog } from '../domain/types'
 import { createKeepAwake, type AwakeState } from '../engine/awake'
-import { resumeAudio, setAmbient, setKeepAlive, silence } from '../engine/audio'
+import { hushBells, resumeAudio, setAmbient, setKeepAlive, silence } from '../engine/audio'
 import { playCue, primeForPractice, recentlyPrimed, showNowPlaying, vibrate } from '../engine/session'
 import { createSpeaker } from '../engine/speech'
+import { clearStage, stageElement } from '../engine/stage'
 import { useApp, type ActiveSession } from '../state/app'
 import { Icon } from '../ui/icons'
 import { clock, minutes, Segmented, Sheet, pressed } from '../ui/kit'
 import { newId } from '../store/transfer'
-import { PoseVideo } from './media'
+import { getBlob } from '../store/db'
 import '../ui/player.css'
 
 const reduceMotion = () =>
@@ -106,6 +107,10 @@ function Session(props: SessionProps) {
 
   const loc = createMemo(() => locate(state().timeline, position(state(), now())))
   const segment = () => loc().segment
+  const hasClip = createMemo(() => {
+    const seg = state().timeline.segments[loc().index]
+    return !!seg && seg.kind !== 'breath' && !!stageVideo(app.pose(seg.pose ?? ''))
+  })
   const status = () => state().phase.status
 
   const keepAwake = createKeepAwake(setAwake)
@@ -138,12 +143,65 @@ function Session(props: SessionProps) {
     })
   }
 
-  // The pose video moves only while the practice runs.
+  // The stage gives one video element each pose's clip in turn (see engine/stage.ts).
   let video: HTMLVideoElement | undefined
-  const showVideo = (v: HTMLVideoElement) => {
-    video = v
-    // The ref runs before the element has its source, so it can only start once the first frame is in.
-    v.addEventListener('loadeddata', () => current.phase.status === 'running' && void v.play().catch(() => {}), { once: true })
+  type Clip = { src: string; still: string; mirrored: boolean }
+  const clips = new Map<number, Clip | null>()
+  const ownUrls = new Map<BlobId, string>()
+  let gone = false
+  const clipAt = (index: number): Clip | null => {
+    if (clips.has(index)) return clips.get(index)!
+    const seg = current.timeline.segments[index]
+    const v = seg && seg.kind !== 'breath' && seg.pose ? stageVideo(untrack(() => app.pose(seg.pose!))) : null
+    const src = v && (v.kind === 'builtin' ? v.src : ownUrls.get(v.blob))
+    const clip = v && src ? { src, still: v.kind === 'builtin' ? stillSrc(seg!.pose!) : '', mirrored: mirrorFor(v, seg!.side) } : null
+    // An own clip still loading from the device is looked up again next frame.
+    if (clip || !v) clips.set(index, clip)
+    return clip
+  }
+  for (const seg of run.state.timeline.segments) {
+    const v = seg.pose ? stageVideo(untrack(() => app.pose(seg.pose!))) : null
+    if (v?.kind === 'own' && !ownUrls.has(v.blob)) {
+      ownUrls.set(v.blob, '')
+      void getBlob(v.blob).then(stored => stored && !gone && ownUrls.set(v.blob, URL.createObjectURL(stored.blob)))
+    }
+  }
+
+  // Called every frame: the clip follows the step, and plays exactly while the practice runs.
+  let playAt = 0
+  let movedAt = 0
+  let lastTime = -1
+  const syncStage = (t: number, index: number) => {
+    if (!video) return
+    const clip = clipAt(index)
+    const running = current.phase.status === 'running' && document.visibilityState === 'visible'
+    if (!clip) {
+      if (!video.paused) video.pause()
+      return
+    }
+    if (video.getAttribute('src') !== clip.src) {
+      // A poster disappears once play() is called, frame or no frame. A background stays until the first frame covers it.
+      video.style.backgroundImage = clip.still ? `url("${clip.still}")` : ''
+      video.src = clip.src
+      video.setAttribute('aria-label', current.timeline.segments[index]!.title)
+    }
+    video.classList.toggle('mirrored', clip.mirrored)
+    if (!running || video.paused) movedAt = t
+    if (!running) {
+      if (!video.paused) video.pause()
+    } else if (video.paused) {
+      if (t >= playAt) {
+        playAt = t + 1000
+        void video.play().catch(() => {})
+      }
+    } else if (video.currentTime !== lastTime) {
+      lastTime = video.currentTime
+      movedAt = t
+    } else if (t - movedAt > 4000) {
+      // Stuck on one frame while playing: the network let it down. Loading it again starts it over.
+      movedAt = t
+      video.load()
+    }
   }
 
   const quiet = () => {
@@ -210,6 +268,7 @@ function Session(props: SessionProps) {
       }
     }
     const index = locate(current.timeline, position(current, t)).index
+    syncStage(t, index)
     if (index !== lastIndex) {
       const from = current.timeline.segments[lastIndex]?.figure ?? null
       setMorph({ from: lastIndex === -1 || reduceMotion() ? null : from, at: t })
@@ -232,7 +291,8 @@ function Session(props: SessionProps) {
       if (search.session !== run.id) setSearch({ session: run.id, resume: undefined }, { replace: true })
     }
     if (settings.keepAwake) keepAwake.on()
-    void video?.play().catch(() => {})
+    // The tick below then starts the clip inside this tap, which an iPhone asks for.
+    playAt = 0
     setKeepAlive(true)
     resumeAudio()
     setAmbient(settings.sound.ambient, settings.sound.ambientVolume)
@@ -252,8 +312,11 @@ function Session(props: SessionProps) {
   const skip = (direction: 1 | -1) => {
     if (ended) return
     const t = Date.now()
+    // The person moved on, so the last step's voice and its ringing bell stop with it.
     speaker.stop()
+    hushBells()
     commit(direction === 1 ? next(current, t) : back(current, t))
+    playAt = 0
     if (current.phase.status === 'done') {
       finish(true)
       return
@@ -323,6 +386,9 @@ function Session(props: SessionProps) {
     quiet()
     keepAwake.dispose()
     showNowPlaying(null)
+    gone = true
+    clearStage()
+    for (const url of ownUrls.values()) if (url) URL.revokeObjectURL(url)
   })
   // Arriving from a Begin tap starts straight away; a reload or a shared link waits for a tap.
   if (!run.resumed && recentlyPrimed()) resume()
@@ -367,21 +433,19 @@ function Session(props: SessionProps) {
         </header>
 
         <section class="player-stage" aria-live="polite">
+          <div
+            class="stage-video"
+            hidden={!hasClip()}
+            ref={box => {
+              video = stageElement()
+              box.append(video)
+            }}
+          />
           <Switch>
             <Match when={segment().kind === 'breath'}>
               <BreathOrb segment={segment()} intoMs={loc().intoMs} />
             </Match>
-            <Match when={stageVideo(app.pose(segment().pose ?? '')) && segment().pose} keyed>
-              {pose => {
-                // Keyed by pose, so the clip keeps playing from getting ready into the hold.
-                const video = stageVideo(app.pose(pose))!
-                return (
-                  <div class="stage-video">
-                    <PoseVideo video={video} title={segment().title} mirrored={mirrorFor(video, segment().side)} ref={showVideo} />
-                  </div>
-                )
-              }}
-            </Match>
+            <Match when={hasClip()}>{null}</Match>
             <Match when={shown()}>
               {pose => (
                 <div class="stage-figure">
