@@ -78,7 +78,7 @@ The person reported doubled speech, two accents, practices pausing on their own,
 
 **Writes are flushed before they are read.** The client build of Solid 2 applies store writes at the end of the tick. Code that saves or applies state it just wrote calls `flush()` first. The player keeps its state in a plain variable and copies it to a signal for the screen.
 
-**One speech queue, one voice.** The speaker in `src/engine/speech.ts` says one sentence at a time. It waits for an interrupted line to report its end before starting the next, because calling `speak()` straight after `cancel()` is when phones repeated or dropped lines. It picks one on-device voice when the practice starts and keeps it. A network voice that stalls makes the browser fall back to a different voice. Lines belong to a step, so moving on cuts off the last step's leftovers instead of letting them run on.
+**One speech queue, one voice.** The speaker in `src/engine/speech.ts` says one sentence at a time. It leaves the engine alone for a moment after any cancel, because calling `speak()` straight after `cancel()` is when phones repeated or dropped lines (see Video and voice on iPhone). It picks one on-device voice when the practice starts and keeps it. A network voice that stalls makes the browser fall back to a different voice. Lines belong to a step, so moving on cuts off the last step's leftovers instead of letting them run on.
 
 **Pose names by default.** Full spoken instructions overran the get-ready gaps and were cut off by the bell. Settings saved before revision 2 that still hold the old `full` default move to `names`. Full guidance stays available in Settings.
 
@@ -98,7 +98,21 @@ The person reported doubled speech, two accents, practices pausing on their own,
 
 **Asked on Today, once.** A "Get the app" card sits above the suggestion until the app is installed. "Not now" hides it from Today for two weeks. Settings and About always show it. On iPhone the guide says to install first, because the installed app keeps its own storage apart from Safari, and Safari can clear a site's data after a week away.
 
+## Video and voice on iPhone (2026-11-25)
+
+The person reported pose videos that sometimes never played or stuck, and buggy audio when skipping. None of it showed in the test suite, which only ran Chromium.
+
+**The server answers byte ranges.** Static assets answered every `Range` request with the whole file. iPhone Safari will not play a video from such a server, so a clip the service worker had not saved yet stayed stuck. `src/worker/index.ts` sits in front of `/media/poses/*` and cuts each response to the range asked for.
+
+**One stage video for the whole app.** An iPhone, in Low Power Mode for one, lets a video start without a tap only if that same element was once started from one. The player used to make a new element per pose and wait for `loadeddata`, which iPhones may never send before `play()`. `src/engine/stage.ts` now keeps one element, the Begin tap starts it, and the player's frame loop gives it each pose's clip, plays or pauses it with the practice and reloads a clip that stopped moving. The pose's still sits behind it until the first frame. A poster would not do, since it disappears the moment `play()` is called.
+
+**The speaker never acts inside an engine event.** WebKit reports a cancelled line's end from inside `cancel()` and drops a line spoken from that event. Measured against WebKit and Chromium on a Mac with real voices. The old speaker's watchdog did exactly that, so one missing end event silenced the rest of a step. Every decision now happens in one `pump` on its own timer. It waits 250 ms after any cancel, says a line once more if the engine dropped it, and holds a new step's first line for 400 ms so quick taps through steps stay quiet.
+
+**A skip fades the ringing bell.** A bowl rings for 26 seconds. Skipping already cut the voice, and now the bell fades with it. A bell plays through the bus it was struck on, so one still loading when the person skips stays quiet.
+
+**The browser tests run on Safari's engine.** Every e2e test also runs in WebKit as an iPhone 13, on a macOS runner in CI, and the deploy waits for it. The fake phone speech engine follows Safari's cancel rules, and a test copies the iPhone's rule for starting video. Each of tonight's fixes has a test that fails on the code before it. Running on WebKit also found that Safari refuses a `Blob` in IndexedDB in a private window, so photos and videos are stored as bytes.
+
 ## Open
 
-- Background audio and wake-lock behaviour on a real iPhone has not been tested. The e2e suite covers Chromium with stubbed APIs.
+- Background audio and wake-lock behaviour on a real iPhone has not been tested. The e2e suite covers Chromium and WebKit with stubbed speech and an emulated video rule, not iOS itself.
 - Spoken guidance uses the device's own voices. Quality varies by device.
