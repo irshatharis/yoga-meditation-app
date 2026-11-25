@@ -142,3 +142,25 @@ test('a skipped-to pose plays its video, and shows its photo while the clip load
   const at = await time(video)
   await expect.poll(() => time(video), { timeout: 5_000 }).toBeGreaterThan(at + 0.5)
 })
+
+test('a pose page shows the photo and plays on a tap when the phone will not autoplay', async ({ page }) => {
+  await iphonePlayRules(page)
+  await page.addInitScript(() => {
+    // Low Power Mode: a video that starts by itself, not through play(), is stopped.
+    const asked = new WeakSet<EventTarget>()
+    const play = HTMLMediaElement.prototype.play
+    HTMLMediaElement.prototype.play = function (this: HTMLMediaElement) {
+      asked.add(this)
+      return play.call(this)
+    }
+    addEventListener('play', e => e.target instanceof HTMLMediaElement && !asked.has(e.target) && e.target.pause(), true)
+  })
+  await page.goto('/poses/child')
+  const video = page.locator('.pose-stage video')
+  await expect(video).toHaveAttribute('src', /child\.mp4/)
+  expect(await video.evaluate(v => getComputedStyle(v).backgroundImage)).toContain('/media/stills/child.jpg')
+  await page.waitForTimeout(1_000)
+  expect(await video.evaluate((v: HTMLVideoElement) => v.paused), 'nothing plays before the tap').toBe(true)
+  await video.click()
+  await expect.poll(() => time(video), { timeout: 5_000 }).toBeGreaterThan(0.5)
+})

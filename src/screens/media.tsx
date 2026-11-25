@@ -92,7 +92,9 @@ export function MediaGallery(props: { media: MediaRef[]; onRemove?: (index: numb
 }
 
 // The video on a pose's stage. It loops without sound, since the voice does the teaching.
-export function PoseVideo(props: { video: StageVideo; title: string; mirrored?: boolean; autoplay?: boolean; ref?: (video: HTMLVideoElement) => void }) {
+// `still` shows until the first frame, and stays when a phone in Low Power Mode
+// will not autoplay, in which case a tap starts it.
+export function PoseVideo(props: { video: StageVideo; title: string; mirrored?: boolean; autoplay?: boolean; still?: string; ref?: (video: HTMLVideoElement) => void }) {
   const [src, setSrc] = createSignal(untrack(() => (props.video.kind === 'builtin' ? props.video.src : undefined)))
   const own = untrack(() => props.video)
   if (own.kind === 'own') {
@@ -112,6 +114,8 @@ export function PoseVideo(props: { video: StageVideo; title: string; mirrored?: 
     <video
       class={['pose-video', { mirrored: props.mirrored }]}
       src={src()}
+      style={props.still ? { background: `center / cover no-repeat url("${props.still}")` } : undefined}
+      onClick={e => e.currentTarget.paused && void e.currentTarget.play().catch(() => {})}
       aria-label={props.title}
       autoplay={props.autoplay}
       loop

@@ -5,7 +5,7 @@ import { Figure } from '../figure/Figure'
 import { blend, mirror, type FigurePose } from '../figure/skeleton'
 import { Icon } from '../ui/icons'
 import { Segmented, Sheet, toast, useBack } from '../ui/kit'
-import { LICENSE, SOURCES, mirrorFor, stageVideo, youtubeUrl } from '../content/demos'
+import { LICENSE, SOURCES, mirrorFor, stageVideo, stillSrc, youtubeUrl } from '../content/demos'
 import { MediaGallery, PoseVideo, addMediaFromFile, addMediaLink } from './media'
 import { FAMILY_LABEL } from './Poses'
 import type { Pose } from '../domain/types'
@@ -82,7 +82,15 @@ function Detail(props: { pose: Pose }) {
       <Show when={props.pose.figure || video()}>
         <div class={['pose-stage', { video: !!video() }]}>
           <Show when={video()} keyed fallback={<Figure pose={morph.shown()} title={`${props.pose.name}, ${side()} side`} />}>
-            {v => <PoseVideo video={v} title={`${props.pose.name}, ${side()} side`} mirrored={mirrorFor(v, props.pose.sided ? side() : undefined)} autoplay />}
+            {v => (
+              <PoseVideo
+                video={v}
+                title={`${props.pose.name}, ${side()} side`}
+                mirrored={mirrorFor(v, props.pose.sided ? side() : undefined)}
+                still={v.kind === 'builtin' ? stillSrc(props.pose.id) : undefined}
+                autoplay
+              />
+            )}
           </Show>
           <Show when={props.pose.sided}>
             <div style={{ position: 'absolute', top: '12px', right: '12px' }}>
