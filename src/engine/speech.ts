@@ -56,6 +56,9 @@ const VOICES_WAIT_MS = 1500
 const AFTER_CANCEL_MS = 250
 // A line the engine has not started by now, while saying it is idle, was dropped.
 const START_WAIT_MS = 2000
+// A new step's first line waits this long, so tapping through several steps
+// stays quiet instead of starting and cutting off a line on every tap.
+const NEW_STEP_MS = 400
 
 type Line = { text: string; retry: boolean }
 type Speaking = Line & { utterance: SpeechSynthesisUtterance; started: boolean; sentAt: number; deadline: number }
@@ -146,6 +149,7 @@ export function createSpeaker(options: () => VoiceOptions): Speaker {
       if (next !== topic) {
         topic = next
         interrupt()
+        quietUntil = Math.max(quietUntil, Date.now() + NEW_STEP_MS)
       }
       // Chrome cuts a single utterance off after about fifteen seconds.
       for (const sentence of text.match(/[^.!?]+[.!?]*/g) ?? []) if (sentence.trim()) queue.push({ text: sentence.trim(), retry: false })

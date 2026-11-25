@@ -100,28 +100,40 @@ describe('speaker', () => {
   it('speaks one line at a time, in order', () => {
     const s = createSpeaker(options)
     s.say('Warrior two. Right side.', 1)
+    vi.advanceTimersByTime(400)
     expect(env.log).toEqual(['say Warrior two. [Samantha]'])
     env.synth.finish()
     vi.advanceTimersByTime(0)
     expect(env.log.at(-1)).toBe('say Right side. [Samantha]')
   })
 
-  it('leaves the engine a moment after cutting a line off before starting the next step', () => {
+  it('cuts the last step off at once and starts the next a moment later', () => {
     const s = createSpeaker(options)
     s.say('Kneel with your big toes together. Sit your hips back.', 1)
+    vi.advanceTimersByTime(400)
     s.say('Next, Cobra.', 2)
     expect(env.log).toEqual(['say Kneel with your big toes together. [Samantha]', 'cancel'])
-    vi.advanceTimersByTime(249)
+    vi.advanceTimersByTime(399)
     expect(env.log).toHaveLength(2)
     vi.advanceTimersByTime(1)
     expect(env.log).toEqual(['say Kneel with your big toes together. [Samantha]', 'cancel', 'say Next, Cobra. [Samantha]'])
+  })
+
+  it('stays quiet while the person taps quickly through steps', () => {
+    const s = createSpeaker(options)
+    for (const [i, text] of ['Next, Child.', 'Next, Cobra.', 'Next, Tree.'].entries()) {
+      s.say(text, i)
+      vi.advanceTimersByTime(300)
+    }
+    vi.advanceTimersByTime(100)
+    expect(env.log).toEqual(['say Next, Tree. [Samantha]'])
   })
 
   it('says a line again once when the engine silently dropped it', () => {
     const s = createSpeaker(options)
     env.synth.speak = (u: Utterance) => void env.log.push(`lost ${u.text}`)
     s.say('Next, Cobra.', 1)
-    vi.advanceTimersByTime(2_000)
+    vi.advanceTimersByTime(2_400)
     expect(env.log).toEqual(['lost Next, Cobra.', 'cancel'])
     vi.advanceTimersByTime(2_500)
     expect(env.log).toEqual(['lost Next, Cobra.', 'cancel', 'lost Next, Cobra.', 'cancel'])
@@ -132,9 +144,11 @@ describe('speaker', () => {
   it('keeps the same voice for the whole practice when the voice list changes', () => {
     const s = createSpeaker(options)
     s.say('First, Child.', 1)
+    vi.advanceTimersByTime(400)
     env.synth.finish()
     env.synth.voices = [voice('Karen', 'en-AU', { default: true }), ...env.synth.voices]
     s.say('Next, Cobra.', 2)
+    vi.advanceTimersByTime(400)
     expect(env.log.filter(l => l.startsWith('say')).map(l => l.split('[')[1])).toEqual(['Samantha]', 'Samantha]'])
   })
 
@@ -143,6 +157,7 @@ describe('speaker', () => {
     env.synth.voices = []
     const s = createSpeaker(options)
     s.say('First, Child.', 1)
+    vi.advanceTimersByTime(400)
     expect(env.log).toEqual([])
     env.synth.voices = list
     vi.advanceTimersByTime(200)
@@ -191,6 +206,7 @@ describe('speaker', () => {
   it('goes quiet on stop and drops what was queued', () => {
     const s = createSpeaker(options)
     s.say('One. Two. Three.', 1)
+    vi.advanceTimersByTime(400)
     s.stop()
     vi.advanceTimersByTime(1_000)
     expect(env.log).toEqual(['say One. [Samantha]', 'cancel'])
