@@ -1,7 +1,7 @@
 import { createSignal, For, onCleanup, Show, untrack } from 'solid-js'
 import type { StageVideo } from '../content/demos'
 import type { BlobId, MediaRef } from '../domain/types'
-import { getBlob, put } from '../store/db'
+import { getBlob, putBlobs } from '../store/db'
 import { newId } from '../store/transfer'
 import { Icon } from '../ui/icons'
 import { pickFile, toast } from '../ui/kit'
@@ -18,7 +18,7 @@ export async function addMediaFromFile(accept = 'image/*,video/*'): Promise<Medi
   const kind = file.type.startsWith('video/') ? 'video' : 'image'
   const id = newId('media') as BlobId
   try {
-    await put('blobs', { id, blob: file, mime: file.type, name: file.name })
+    await putBlobs([{ id, blob: file, mime: file.type, name: file.name }])
   } catch {
     toast('This device could not store that file. Try a smaller one.')
     return null

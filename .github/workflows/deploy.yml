@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
     env:
       CF_SEND_TELEMETRY: "false"
@@ -34,8 +34,45 @@ jobs:
       - name: Install browser
         run: npx playwright install --with-deps chromium
 
-      - name: End-to-end tests
-        run: npx playwright test
+      - name: End-to-end tests in Chromium
+        run: npx playwright test --project=phone --project=desktop
+
+  # Safari's engine runs on a Mac, which has the H.264 decoding and system
+  # voices an iPhone has. Linux WebKit lacks both.
+  iphone:
+    runs-on: macos-latest
+    env:
+      CF_SEND_TELEMETRY: "false"
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install browser
+        run: npx playwright install webkit
+
+      - name: End-to-end tests in WebKit
+        run: npx playwright test --project=iphone
+
+  deploy:
+    needs: [test, iphone]
+    runs-on: ubuntu-latest
+    env:
+      CF_SEND_TELEMETRY: "false"
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
 
       - name: Build
         run: npx cf build

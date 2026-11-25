@@ -199,7 +199,7 @@ function createApp(initial: Loaded) {
         db.putMany('poses', records.poses),
         db.putMany('practices', records.practices),
         db.putMany('logs', records.logs),
-        db.putMany('blobs', records.blobs),
+        db.putBlobs(records.blobs),
         ...(records.settings ? [db.setKV('settings', settingsRecord(settings))] : [])
       ])
     },

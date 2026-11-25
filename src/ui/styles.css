@@ -432,6 +432,8 @@ h3.display {
 }
 .chips.wrap {
   flex-wrap: wrap;
+  /* Rows far enough apart that each chip keeps a whole fingertip's worth of tap area. */
+  row-gap: 10px;
   overflow: visible;
   margin: 0;
   padding: 0;
@@ -825,7 +827,7 @@ textarea.input {
 }
 .segmented button {
   height: 38px;
-  min-width: 44px;
+  min-width: 48px;
   padding: 0 12px;
   border-radius: 999px;
   font-size: 0.82rem;

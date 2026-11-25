@@ -81,12 +81,27 @@ export async function setKV(key: string, value: unknown) {
   await done(tx)
 }
 
-export async function getBlob(id: string): Promise<StoredBlob | undefined> {
-  const db = await open()
-  return result(db.transaction('blobs').objectStore('blobs').get(id)) as Promise<StoredBlob | undefined>
+export type StoredBlob = { id: string; blob: Blob; mime: string; name: string }
+
+// Photos and videos are written as plain bytes. Safari refuses a Blob in
+// IndexedDB in a private window. Files saved before this are read as they are.
+type BlobRecord = Omit<StoredBlob, 'blob'> & ({ data: ArrayBuffer } | { blob: Blob })
+
+const toRecord = async ({ blob, ...rest }: StoredBlob): Promise<BlobRecord> => ({ ...rest, data: await blob.arrayBuffer() })
+const fromRecord = (r: BlobRecord): StoredBlob => {
+  const { id, mime, name } = r
+  return { id, mime, name, blob: 'data' in r ? new Blob([r.data], { type: mime }) : r.blob }
 }
 
-export type StoredBlob = { id: string; blob: Blob; mime: string; name: string }
+export async function getBlob(id: string): Promise<StoredBlob | undefined> {
+  const db = await open()
+  const record = (await result(db.transaction('blobs').objectStore('blobs').get(id))) as BlobRecord | undefined
+  return record && fromRecord(record)
+}
+
+export const getAllBlobs = async () => (await getAll<BlobRecord>('blobs')).map(fromRecord)
+
+export const putBlobs = async (blobs: readonly StoredBlob[]) => putMany('blobs', await Promise.all(blobs.map(toRecord)))
 
 export async function clearAll() {
   const db = await open()

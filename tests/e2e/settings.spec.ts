@@ -44,7 +44,8 @@ test('the chosen voice is named once the device voices load', async ({ page }) =
       ready = true
       speechSynthesis.dispatchEvent(new Event('voiceschanged'))
     }, 300)
-    Object.defineProperty(speechSynthesis, 'getVoices', { configurable: true, value: () => (ready ? voices : []) })
+    // On the prototype, because WebKit ignores an own property on speechSynthesis.
+    Object.defineProperty(SpeechSynthesis.prototype, 'getVoices', { configurable: true, value: () => (ready ? voices : []) })
   })
   await page.goto('/settings')
   await page.getByLabel('Voice', { exact: true }).selectOption('alice')

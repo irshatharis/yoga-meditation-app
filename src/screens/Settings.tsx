@@ -85,7 +85,7 @@ export default function SettingsScreen() {
   }
 
   const exportAll = async () => {
-    const blobs: db.StoredBlob[] = includeMedia() ? await db.getAll<db.StoredBlob>('blobs') : []
+    const blobs: db.StoredBlob[] = includeMedia() ? await db.getAllBlobs() : []
     try {
       download(backupFileName(), await backupBlob({ settings: settingsRecord(s), poses: app.userPoses(), practices: app.userPractices(), logs: app.logs(), blobs }, includeMedia()))
       toast('Backup saved to your downloads.')

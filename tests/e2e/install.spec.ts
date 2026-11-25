@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 
-test('Chrome sees the app as installable', async ({ page }) => {
+test('Chrome sees the app as installable', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'asks Chrome itself, through its debugging protocol')
   await page.goto('/')
   await page.evaluate(() => navigator.serviceWorker.ready)
   const cdp = await page.context().newCDPSession(page)

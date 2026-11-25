@@ -19,6 +19,8 @@ export default defineConfig({
       },
   projects: [
     { name: 'phone', use: { ...devices['Pixel 7'] } },
+    // Safari's engine, where an iPhone's video and speech quirks live.
+    { name: 'iphone', use: { ...devices['iPhone 13'] } },
     { name: 'desktop', use: { ...devices['Desktop Chrome'] }, testMatch: /install|offline/ }
   ]
 })
