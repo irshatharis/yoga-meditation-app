@@ -17,7 +17,8 @@ export const SOURCES = {
 
 export type SourceId = keyof typeof SOURCES
 
-export const LICENSE = { name: 'CC BY', url: 'https://creativecommons.org/licenses/by/4.0/' }
+// YouTube's Creative Commons option is CC BY 3.0. docs/video-sources.tsv records each video's licence as checked.
+export const LICENSE = { name: 'CC BY 3.0', url: 'https://creativecommons.org/licenses/by/3.0/' }
 
 export type Demo = {
   source: SourceId
