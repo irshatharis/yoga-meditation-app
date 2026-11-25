@@ -79,20 +79,26 @@ export async function spySpeech(page: Page) {
 
 export const said = (page: Page) => page.evaluate(() => (window as unknown as { __said: string[] }).__said)
 
-export type Spoken = { text: string; voice: string; overlap: boolean }
+export type Spoken = { text: string; voice: string; overlap: boolean; lost: boolean }
 
-// A speech engine on the page clock that behaves like a phone's: the voice list
-// arrives late, lines take time to say, and a cancelled line reports its end a
-// moment later. Each line records whether another was still being spoken.
-export async function fakeSpeech(page: Page) {
-  await page.addInitScript(() => {
-    type Line = { text: string; voice: { name: string } | null; onend?: () => void; onerror?: () => void }
+// A speech engine on the page clock that behaves like Safari on a phone: the
+// voice list arrives late and lines take time to say. cancel() reports the cut
+// line's error from inside itself, and a line spoken then, or within 120 ms of
+// a cancel, is silently lost. `endless` lines never report their end, as
+// happens to a phone's engine now and then; it is a pattern matched against each line. Each line records whether another
+// was still being said, and whether it was lost.
+export async function fakeSpeech(page: Page, options: { endless?: string } = {}) {
+  await page.addInitScript(endless => {
+    type Line = { text: string; voice: { name: string } | null; onstart?: () => void; onend?: () => void; onerror?: () => void }
     const w = window as unknown as { __spoken: Spoken[] }
     w.__spoken = []
     const voice = (name: string, lang: string, isDefault: boolean) => ({ name, lang, voiceURI: name, localService: true, default: isDefault })
     const voices: ReturnType<typeof voice>[] = []
     const listeners = new Set<() => void>()
+    const neverEnds = endless ? new RegExp(endless) : null
     let current: Line | null = null
+    let cancelling = false
+    let cancelledAt = -Infinity
     setTimeout(() => {
       voices.push(voice('Daniel', 'en-GB', false), voice('Samantha', 'en-US', true))
       for (const fn of listeners) fn()
@@ -110,8 +116,12 @@ export async function fakeSpeech(page: Page) {
       pause() {},
       speak(u: Line) {
         if (!u.text.trim()) return
-        w.__spoken.push({ text: u.text, voice: u.voice?.name ?? '', overlap: current !== null })
+        const lost = cancelling || Date.now() - cancelledAt < 120
+        w.__spoken.push({ text: u.text, voice: u.voice?.name ?? '', overlap: !lost && current !== null, lost })
+        if (lost) return
         current = u
+        u.onstart?.()
+        if (neverEnds?.test(u.text)) return
         setTimeout(() => {
           if (current !== u) return
           current = null
@@ -119,9 +129,12 @@ export async function fakeSpeech(page: Page) {
         }, 400 + u.text.length * 50)
       },
       cancel() {
+        cancelledAt = Date.now()
         const u = current
         current = null
-        if (u) setTimeout(() => u.onerror?.(), 60)
+        cancelling = true
+        u?.onerror?.()
+        cancelling = false
       }
     }
     Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: engine })
@@ -132,7 +145,7 @@ export async function fakeSpeech(page: Page) {
       volume = 1
       constructor(public text: string) {}
     }
-  })
+  }, options.endless ?? null)
 }
 
 export const spoken = (page: Page) => page.evaluate(() => (window as unknown as { __spoken: Spoken[] }).__spoken)

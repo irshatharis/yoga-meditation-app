@@ -50,18 +50,27 @@ export type Speaker = {
 
 // Waits this long for the voice list before speaking with the device default.
 const VOICES_WAIT_MS = 1500
+// The engine is left alone this long after any cancel. Safari drops a line
+// spoken straight after cancel(), and fires the cancelled line's end inside
+// cancel() itself, so a line started from that event is lost too.
+const AFTER_CANCEL_MS = 250
+// A line the engine has not started by now, while saying it is idle, was dropped.
+const START_WAIT_MS = 2000
 
-// Speaks one sentence at a time and only starts the next once the browser
-// reports the last one finished. Calling speak() straight after cancel() is
-// what doubled lines on phones, so an interrupted line is waited out first.
+type Line = { text: string; retry: boolean }
+type Speaking = Line & { utterance: SpeechSynthesisUtterance; started: boolean; sentAt: number; deadline: number }
+
+// Speaks one sentence at a time. Every decision happens in `pump`, which reads
+// the state, takes at most one step and books its own next look, so it is
+// safe to call at any moment and never runs inside an engine event.
 export function createSpeaker(options: () => VoiceOptions): Speaker {
   const createdAt = Date.now()
   let locked: { uri: string | null; voice: SpeechSynthesisVoice | null } | null = null
-  let queue: string[] = []
+  let queue: Line[] = []
   let topic: number | null = null
-  let current: SpeechSynthesisUtterance | null = null
-  let watchdog = 0
-  let waiting = 0
+  let current: Speaking | null = null
+  let quietUntil = 0
+  let timer = 0
 
   const voice = (): SpeechSynthesisVoice | null | undefined => {
     const uri = options().voiceURI
@@ -72,51 +81,64 @@ export function createSpeaker(options: () => VoiceOptions): Speaker {
     return locked.voice
   }
 
-  const settle = (u: SpeechSynthesisUtterance) => {
-    if (current !== u) return
+  const later = (ms: number) => {
+    clearTimeout(timer)
+    timer = window.setTimeout(pump, Math.max(0, ms))
+  }
+
+  // `current` is cleared first, so events the engine fires from inside cancel() find nothing to act on.
+  const cancel = (s: SpeechSynthesis) => {
     current = null
-    clearTimeout(watchdog)
-    pump()
+    s.cancel()
+    quietUntil = Date.now() + AFTER_CANCEL_MS
   }
 
   function pump() {
     const s = synth()
-    if (!s || current || !queue.length) return
-    const v = voice()
-    if (v === undefined) {
-      clearTimeout(waiting)
-      waiting = window.setTimeout(pump, 200)
-      return
+    if (!s) return
+    const now = Date.now()
+    if (current) {
+      const line = current
+      if (!line.started && now - line.sentAt >= START_WAIT_MS && !s.speaking && !s.pending) {
+        cancel(s)
+        if (!line.retry) queue.unshift({ text: line.text, retry: true })
+      } else if (now >= line.deadline) cancel(s)
+      else {
+        const startBy = line.sentAt + START_WAIT_MS
+        return later((line.started ? line.deadline : now < startBy ? startBy : Math.min(line.deadline, now + 500)) - now)
+      }
     }
-    const text = queue.shift()!
+    if (!queue.length) return
+    if (now < quietUntil) return later(quietUntil - now)
+    const v = voice()
+    if (v === undefined) return later(200)
+    const next = queue.shift()!
     const { rate, volume } = options()
-    const u = new SpeechSynthesisUtterance(text)
+    const u = new SpeechSynthesisUtterance(next.text)
     if (v) u.voice = v
     u.lang = v?.lang ?? navigator.language
     u.rate = rate
     u.volume = Math.min(1, Math.max(0.2, volume + 0.3))
-    u.onend = () => settle(u)
-    u.onerror = () => settle(u)
-    current = u
     // Some engines never report the end of a line. Move on once it surely finished.
-    watchdog = window.setTimeout(() => {
-      if (current !== u) return
-      s.cancel()
-      settle(u)
-    }, 4000 + (text.length * 120) / rate)
+    const line: Speaking = { ...next, utterance: u, started: false, sentAt: now, deadline: now + 4000 + (next.text.length * 120) / rate }
+    u.onstart = () => {
+      if (current === line) line.started = true
+    }
+    u.onend = u.onerror = () => {
+      if (current !== line) return
+      current = null
+      later(0)
+    }
+    current = line
     if (s.paused) s.resume()
     s.speak(u)
+    later(START_WAIT_MS)
   }
 
   const interrupt = () => {
     queue = []
-    clearTimeout(waiting)
-    const u = current
     const s = synth()
-    if (!u || !s) return
-    s.cancel()
-    clearTimeout(watchdog)
-    watchdog = window.setTimeout(() => settle(u), 250)
+    if (current && s) cancel(s)
   }
 
   return {
@@ -126,7 +148,7 @@ export function createSpeaker(options: () => VoiceOptions): Speaker {
         interrupt()
       }
       // Chrome cuts a single utterance off after about fifteen seconds.
-      for (const sentence of text.match(/[^.!?]+[.!?]*/g) ?? []) if (sentence.trim()) queue.push(sentence.trim())
+      for (const sentence of text.match(/[^.!?]+[.!?]*/g) ?? []) if (sentence.trim()) queue.push({ text: sentence.trim(), retry: false })
       pump()
     },
     stop() {

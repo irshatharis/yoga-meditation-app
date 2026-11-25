@@ -76,6 +76,7 @@ test('the voice says each line once, in one voice, through quick skipping', asyn
   expect(said[0]!.text).toBe('First, Child')
   expect(said.slice(-2).map(l => l.text), 'the step landed on is announced in full').toEqual(['Next, Warrior two.', 'Right side'])
   expect(said.filter(l => l.overlap), 'a line started while another was still being said').toEqual([])
+  expect(said.filter(l => l.lost), 'a line the engine lost because it came too soon after a cut').toEqual([])
   expect(new Set(said.map(l => l.voice))).toEqual(new Set(['Samantha']))
   for (let i = 1; i < said.length; i++) expect(said[i]!.text, 'no line is said twice in a row').not.toBe(said[i - 1]!.text)
 })
@@ -98,4 +99,17 @@ test('only a tap pauses the practice', async ({ page }) => {
   }
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible()
   expect(await page.evaluate(() => (window as unknown as { __handlers: string[] }).__handlers)).toEqual([])
+})
+
+test('the voice carries on after the phone never reports the end of a line', async ({ page }) => {
+  await fakeSpeech(page, { endless: '^Next, Cat and cow\\.$' })
+  await page.goto('/practices/morning-flow')
+  await page.clock.pauseAt(Date.now() + 1_000)
+  await page.getByRole('button', { name: /^Begin/ }).click()
+  await page.getByRole('button', { name: 'Next', exact: true }).click()
+  await page.clock.runFor(20_000)
+  const said = await spoken(page)
+  expect(said.map(l => l.text)).toContain('Next, Cat and cow.')
+  expect(said.filter(l => l.lost).map(l => l.text), 'lines lost after the stuck one').toEqual([])
+  expect(said.map(l => l.text), 'the rest of the announcement').toContain('6 rounds')
 })

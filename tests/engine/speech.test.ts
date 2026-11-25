@@ -9,32 +9,56 @@ class Utterance {
   lang = ''
   rate = 1
   volume = 1
+  onstart: (() => void) | null = null
   onend: (() => void) | null = null
   onerror: (() => void) | null = null
   constructor(public text: string) {}
 }
 
+// How each engine reacts to cancel(), as measured in this repo's probe against real WebKit and Chromium:
+// chrome reports the cut line's error 30 ms later; webkit reports it inside cancel() and loses a line
+// spoken from that event; ios reports nothing and loses a line spoken within 120 ms of the cancel.
+type Flavor = 'chrome' | 'webkit' | 'ios'
+
 // A speech engine that finishes a line only when the test says so, like a real one that takes time to talk.
-function fakeSynth(list: Voice[]) {
+function fakeSynth(list: Voice[], flavor: Flavor = 'chrome') {
   const log: string[] = []
   let speaking: Utterance | null = null
+  let cancelling = false
+  let cancelledAt = -Infinity
   const synth = {
     voices: list,
     paused: false,
+    pending: false,
+    get speaking() {
+      return speaking !== null
+    },
     getVoices: () => synth.voices,
     addEventListener() {},
     removeEventListener() {},
     resume() {},
     speak(u: Utterance) {
+      if (cancelling || (flavor === 'ios' && Date.now() - cancelledAt < 120)) {
+        log.push(`lost ${u.text}`)
+        return
+      }
       if (speaking) log.push(`OVERLAP ${u.text}`)
       speaking = u
       log.push(`say ${u.text} [${u.voice?.name ?? 'none'}]`)
+      u.onstart?.()
     },
     cancel() {
       log.push('cancel')
+      cancelledAt = Date.now()
       const u = speaking
       speaking = null
-      if (u) setTimeout(() => u.onerror?.(), 30)
+      if (!u) return
+      if (flavor === 'chrome') setTimeout(() => u.onerror?.(), 30)
+      if (flavor === 'webkit') {
+        cancelling = true
+        u.onerror?.()
+        cancelling = false
+      }
     },
     finish() {
       const u = speaking
@@ -78,17 +102,31 @@ describe('speaker', () => {
     s.say('Warrior two. Right side.', 1)
     expect(env.log).toEqual(['say Warrior two. [Samantha]'])
     env.synth.finish()
+    vi.advanceTimersByTime(0)
     expect(env.log.at(-1)).toBe('say Right side. [Samantha]')
   })
 
-  it('waits for an interrupted line to end before starting the next step', () => {
+  it('leaves the engine a moment after cutting a line off before starting the next step', () => {
     const s = createSpeaker(options)
     s.say('Kneel with your big toes together. Sit your hips back.', 1)
     s.say('Next, Cobra.', 2)
     expect(env.log).toEqual(['say Kneel with your big toes together. [Samantha]', 'cancel'])
-    vi.advanceTimersByTime(30)
+    vi.advanceTimersByTime(249)
+    expect(env.log).toHaveLength(2)
+    vi.advanceTimersByTime(1)
     expect(env.log).toEqual(['say Kneel with your big toes together. [Samantha]', 'cancel', 'say Next, Cobra. [Samantha]'])
-    expect(env.log.join()).not.toContain('OVERLAP')
+  })
+
+  it('says a line again once when the engine silently dropped it', () => {
+    const s = createSpeaker(options)
+    env.synth.speak = (u: Utterance) => void env.log.push(`lost ${u.text}`)
+    s.say('Next, Cobra.', 1)
+    vi.advanceTimersByTime(2_000)
+    expect(env.log).toEqual(['lost Next, Cobra.', 'cancel'])
+    vi.advanceTimersByTime(2_500)
+    expect(env.log).toEqual(['lost Next, Cobra.', 'cancel', 'lost Next, Cobra.', 'cancel'])
+    vi.advanceTimersByTime(10_000)
+    expect(env.log.filter(l => l.startsWith('lost'))).toHaveLength(2)
   })
 
   it('keeps the same voice for the whole practice when the voice list changes', () => {
@@ -117,6 +155,38 @@ describe('speaker', () => {
     vi.advanceTimersByTime(10_000)
     expect(env.log).toContain('say Breathe out. [Samantha]')
   })
+
+  for (const flavor of ['chrome', 'webkit', 'ios'] as const) {
+    it(`says every line of the step skipped to, and nothing older, on ${flavor}`, () => {
+      env = fakeSynth(env.synth.voices, flavor)
+      vi.stubGlobal('window', { speechSynthesis: env.synth, setTimeout, clearTimeout })
+      const s = createSpeaker(options)
+      // A person skipping on at a reading pace, then quickly, then waiting.
+      const steps = ['Next, Child. Kneel down.', 'Next, Cobra. Lie on your front.', 'Next, Mountain.', 'Next, Tree. Stand tall.']
+      for (const [i, text] of steps.entries()) {
+        s.say(text, i)
+        vi.advanceTimersByTime(i < 2 ? 600 : 50)
+      }
+      const spokenAfterLastSkip = () => env.log.slice(env.log.lastIndexOf('cancel') + 1)
+      for (let i = 0; i < 20; i++) {
+        vi.advanceTimersByTime(300)
+        env.synth.finish()
+      }
+      expect(env.log.join()).not.toContain('OVERLAP')
+      expect(env.log.join()).not.toContain('lost')
+      expect(spokenAfterLastSkip()).toEqual(['say Next, Tree. [Samantha]', 'say Stand tall. [Samantha]'])
+    })
+
+    it(`keeps talking after an engine that never reports the end, on ${flavor}`, () => {
+      env = fakeSynth(env.synth.voices, flavor)
+      vi.stubGlobal('window', { speechSynthesis: env.synth, setTimeout, clearTimeout })
+      const s = createSpeaker(options)
+      s.say('Breathe in. Breathe out. Rest.', 1)
+      vi.advanceTimersByTime(30_000)
+      expect(env.log.filter(l => l.startsWith('say'))).toEqual(['say Breathe in. [Samantha]', 'say Breathe out. [Samantha]', 'say Rest. [Samantha]'])
+      expect(env.log.join()).not.toContain('lost')
+    })
+  }
 
   it('goes quiet on stop and drops what was queued', () => {
     const s = createSpeaker(options)
