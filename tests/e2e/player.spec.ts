@@ -8,6 +8,8 @@ test.beforeEach(async ({ page }) => {
 
 test('gives time to get ready before each pose', async ({ page }) => {
   await page.goto('/practices/morning-flow')
+  // Page time stands still between steps, so a slow machine does not eat into the countdown.
+  await page.clock.pauseAt(Date.now() + 1_000)
   await page.getByRole('button', { name: /^Begin/ }).click()
   const eyebrow = page.locator('.player-info .eyebrow')
   const name = page.locator('.player-name')

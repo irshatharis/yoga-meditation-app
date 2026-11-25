@@ -19,6 +19,8 @@ test('works offline after the first visit', async ({ page, context }) => {
 })
 
 test('plays every pose video offline, including the byte ranges iPhones ask for', async ({ page, context }) => {
+  // Saving 77 MB of clips is the slow part, and waits up to two minutes below.
+  test.setTimeout(180_000)
   await page.goto('/')
   await page.evaluate(() => navigator.serviceWorker.ready)
   await page.reload()
